@@ -26,4 +26,7 @@ model Purchase {
   userId    String
   courseId  Int
   createdAt DateTime @default(now())
+
+  course    Course   @relation(fields: [courseId], references: [id])
 }
+
