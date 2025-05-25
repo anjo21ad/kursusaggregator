@@ -14,11 +14,13 @@ model User {
 }
 
 model Course {
-  id          Int    @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   title       String
   description String
   priceCents  Int
   provider    String
+
+  purchases   Purchase[]
 }
 
 model Purchase {
@@ -29,4 +31,5 @@ model Purchase {
 
   course    Course   @relation(fields: [courseId], references: [id])
 }
+
 
