@@ -20,7 +20,7 @@ model Course {
   priceCents  Int
   provider    String
 
-  purchases   Purchase[]
+  purchases   Purchase[] @relation("CourseToPurchase")
 }
 
 model Purchase {
@@ -29,7 +29,8 @@ model Purchase {
   courseId  Int
   createdAt DateTime @default(now())
 
-  course    Course   @relation(fields: [courseId], references: [id])
+  course    Course   @relation("CourseToPurchase", fields: [courseId], references: [id])
 }
+
 
 
