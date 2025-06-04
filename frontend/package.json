@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.8.2",
+    "@sentry/nextjs": "^9.24.0",
     "@supabase/supabase-js": "^2.49.8",
     "next": "15.1.8",
     "prisma": "^6.8.2",
@@ -23,6 +24,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv-cli": "^8.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.1.8",
     "postcss": "^8",
