@@ -110,6 +110,10 @@ model Category {
   name        String   @unique
   slug        String   @unique
   description String?
+  icon        String?  // Emoji or icon name for visual representation
+  imageUrl    String?  // Optional header image URL
+  color       String?  // Hex color code for branding (#FF6A3D)
+  sortOrder   Int      @default(0) // Manual sort order (lower = higher priority)
   isActive    Boolean  @default(true)
   parentId    Int?
   parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])

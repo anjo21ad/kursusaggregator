@@ -8,12 +8,60 @@ async function main() {
   // Create or get categories
   console.log('📁 Creating/getting categories...')
   const categoryData = [
-    { name: 'Ledelse & Management', slug: 'ledelse', description: 'Kurser i ledelse og management' },
-    { name: 'IT & Teknologi', slug: 'it-teknologi', description: 'Kurser i IT og teknologi' },
-    { name: 'Salg & Marketing', slug: 'salg-marketing', description: 'Kurser i salg og marketing' },
-    { name: 'HR & Personale', slug: 'hr-personale', description: 'Kurser i HR og personalepleje' },
-    { name: 'Økonomi & Regnskab', slug: 'okonomi', description: 'Kurser i økonomi og regnskab' },
-    { name: 'Kommunikation', slug: 'kommunikation', description: 'Kurser i kommunikation' },
+    {
+      name: 'Ledelse & Management',
+      slug: 'ledelse',
+      description: 'Kurser i ledelse og management',
+      icon: '👔',
+      color: '#FF6A3D',
+      sortOrder: 1,
+      isActive: true
+    },
+    {
+      name: 'IT & Teknologi',
+      slug: 'it-teknologi',
+      description: 'Kurser i IT og teknologi',
+      icon: '💻',
+      color: '#7E6BF1',
+      sortOrder: 2,
+      isActive: true
+    },
+    {
+      name: 'Salg & Marketing',
+      slug: 'salg-marketing',
+      description: 'Kurser i salg og marketing',
+      icon: '📊',
+      color: '#3ABEFF',
+      sortOrder: 3,
+      isActive: true
+    },
+    {
+      name: 'HR & Personale',
+      slug: 'hr-personale',
+      description: 'Kurser i HR og personalepleje',
+      icon: '👥',
+      color: '#4ADE80',
+      sortOrder: 4,
+      isActive: true
+    },
+    {
+      name: 'Økonomi & Regnskab',
+      slug: 'okonomi',
+      description: 'Kurser i økonomi og regnskab',
+      icon: '💰',
+      color: '#FBBF24',
+      sortOrder: 5,
+      isActive: true
+    },
+    {
+      name: 'Kommunikation',
+      slug: 'kommunikation',
+      description: 'Kurser i kommunikation',
+      icon: '💬',
+      color: '#F472B6',
+      sortOrder: 6,
+      isActive: true
+    },
   ]
 
   const categories = []
@@ -29,9 +77,19 @@ async function main() {
     })
     if (!category) {
       category = await prisma.category.create({ data: cat })
-      console.log(`  ✅ Created category: ${cat.name}`)
+      console.log(`  ✅ Created category: ${cat.icon} ${cat.name}`)
     } else {
-      console.log(`  ⏭️  Category exists: ${category.name}`)
+      // Update existing category with new metadata
+      category = await prisma.category.update({
+        where: { id: category.id },
+        data: {
+          icon: cat.icon,
+          color: cat.color,
+          sortOrder: cat.sortOrder,
+          isActive: cat.isActive
+        }
+      })
+      console.log(`  🔄 Updated category: ${cat.icon} ${category.name}`)
     }
     categories.push(category)
   }

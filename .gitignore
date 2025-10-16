@@ -137,3 +137,16 @@ dist
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Temporary files
+nul
+*.nul
+
+# Test and development scripts (not needed in production)
+frontend/scripts/check-*.js
+frontend/scripts/run-migration.js
+frontend/scripts/test-*.js
+frontend/prisma/migrations/*.sql
+
+# Root package-lock.json (frontend has its own)
+/package-lock.json
