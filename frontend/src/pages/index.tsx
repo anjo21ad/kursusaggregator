@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
+import Navigation from '@/components/Navigation'
+import Footer from '@/components/Footer'
 
 type Course = {
   id: number
@@ -65,32 +67,8 @@ export default function Home({ courses }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="bg-card/80 backdrop-blur-sm border-b border-text-muted/20">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold text-text-light">CourseHub</div>
-          <div className="hidden md:flex space-x-8">
-            <a href="#" className="text-text-muted hover:text-text-light transition-colors">Kurser</a>
-            <a href="#" className="text-text-muted hover:text-text-light transition-colors">For Virksomheder</a>
-            <a href="#" className="text-text-muted hover:text-text-light transition-colors">Udbydere</a>
-          </div>
-          <div className="flex space-x-4">
-            <Link 
-              href="/register-provider" 
-              className="px-5 py-3 rounded-xl bg-card border border-secondary text-secondary hover:bg-secondary hover:text-white transition-colors font-semibold"
-            >
-              Bliv Udbyder
-            </Link>
-            <Link 
-              href="/login" 
-              className="px-5 py-3 bg-primary rounded-xl text-white hover:bg-primary-dark transition-colors font-semibold"
-            >
-              Log ind
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navigation />
 
       {/* Hero Section */}
       <section className="bg-background py-20">
@@ -109,27 +87,29 @@ export default function Home({ courses }: Props) {
       </section>
 
       {/* Course Grid */}
-      <section className="max-w-5xl mx-auto px-6 py-12">
+      <section className="max-w-5xl mx-auto px-6 py-12 flex-1">
         <h2 className="text-2xl font-bold text-text-light mb-8">Tilgængelige Kurser</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map(course => (
             <div key={course.id} className="bg-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
               <h3 className="text-xl font-semibold text-text-light">{course.title}</h3>
-              <p className="text-text-muted mt-2">{course.description}</p>
+              <p className="text-text-muted mt-2 line-clamp-3">{course.description}</p>
               <div className="mt-4 flex justify-between items-center">
                 <span className="text-primary font-bold">{(course.priceCents / 100).toFixed(2)} kr</span>
-                <button 
-                  onClick={() => handleCheckout(course)}
+                <Link
+                  href={`/courses/${course.id}`}
                   className="px-4 py-2 bg-primary rounded-xl text-white hover:bg-primary-dark transition-colors font-semibold"
                 >
                   Læs mere
-                </button>
+                </Link>
               </div>
               <p className="text-text-muted text-sm mt-2">Udbyder: {course.provider.companyName}</p>
             </div>
           ))}
         </div>
       </section>
+
+      <Footer />
     </div>
   )
 }
