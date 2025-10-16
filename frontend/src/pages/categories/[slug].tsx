@@ -1,14 +1,11 @@
 import { GetServerSideProps } from 'next'
 import { prisma } from '@/lib/prisma'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/router'
-import { supabase } from '@/lib/supabaseClient'
+import { useState } from 'react'
 import Link from 'next/link'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
 import CategorySidebar from '@/components/CategorySidebar'
 import CourseBadge from '@/components/CourseBadge'
-import GlassIcons from '@/components/GlassIcons'
 
 type Course = {
   id: number
@@ -43,129 +40,46 @@ type Category = {
 type Props = {
   courses: Course[]
   categories: Category[]
+  currentCategory: Category
 }
 
-export default function Home({ courses, categories }: Props) {
-  const router = useRouter()
+export default function CategoryPage({ courses, categories, currentCategory }: Props) {
   const [searchQuery, setSearchQuery] = useState('')
-
-  useEffect(() => {
-    const registerPurchase = async () => {
-      const url = new URL(window.location.href)
-      const success = url.searchParams.get('success')
-      const courseId = url.searchParams.get('courseId')
-
-      if (success && courseId) {
-        const { data: { session } } = await supabase.auth.getSession()
-
-        if (session) {
-          await fetch('/api/purchase', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ courseId: Number(courseId) }),
-          })
-        }
-
-        router.replace('/')
-      }
-    }
-
-    registerPurchase()
-  }, [router])
 
   // Filter courses based on search
   const filteredCourses = courses.filter(course =>
     searchQuery === '' ||
     course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.category.name.toLowerCase().includes(searchQuery.toLowerCase())
+    course.description.toLowerCase().includes(searchQuery.toLowerCase())
   )
-
-  // Platform benefits for GlassIcons
-  const platformBenefits = [
-    {
-      icon: <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-      color: 'primary',
-      label: 'Godkendte Udbydere'
-    },
-    {
-      icon: <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
-      color: 'secondary',
-      label: 'Hurtig Administration'
-    },
-    {
-      icon: <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
-      color: 'accent',
-      label: 'Team Samarbejde'
-    },
-    {
-      icon: <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
-      color: 'success',
-      label: 'Tracking & Rapporter'
-    }
-  ]
 
   return (
     <div className="min-h-screen bg-dark-bg flex flex-col">
       <Navigation />
 
-      {/* Hero Section with MeshGradient Background */}
-      <section className="relative bg-dark-bg py-20 border-b border-dark-border overflow-hidden">
-        {/* Animated gradient background - commented out until MeshGradient is available
-        <div className="absolute inset-0 opacity-20">
-          <MeshGradient colors={['#FF6A3D', '#7E6BF1', '#3ABEFF']} />
-        </div>
-        */}
-
-        <div className="relative max-w-7xl mx-auto px-6 text-center">
-          {/* Animated headline */}
-          <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6">
-            Din B2B Kursusplatform
-          </h1>
-
-          <p className="text-xl text-dark-text-secondary max-w-2xl mx-auto mb-8">
-            Find og administrér kompetenceudvikling for hele dit team. Ét sted, alle kurser, total kontrol.
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row justify-center gap-4 mb-12">
-            <Link
-              href="/login"
-              className="px-8 py-4 bg-primary rounded-xl text-white hover:bg-primary/90 transition-all font-semibold shadow-lg shadow-primary/30 transform hover:scale-105 duration-200"
-            >
-              Kom i gang gratis
-            </Link>
-            <button
-              onClick={() => {
-                const coursesSection = document.querySelector('[data-section="courses"]')
-                if (coursesSection) {
-                  coursesSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }
-              }}
-              className="px-8 py-4 bg-dark-card border border-dark-border text-white hover:bg-dark-hover transition-colors font-semibold rounded-xl"
-            >
-              Se demo
-            </button>
+      {/* Category Header */}
+      <section className="bg-dark-card border-b border-dark-border py-12">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="text-5xl">
+              {currentCategory.icon || '📁'}
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-white">
+                {currentCategory.name}
+              </h1>
+              <p className="text-dark-text-secondary mt-2">
+                {currentCategory._count.courses} {currentCategory._count.courses === 1 ? 'kursus' : 'kurser'} tilgængelig{currentCategory._count.courses === 1 ? 't' : 'e'}
+              </p>
+            </div>
           </div>
 
-          {/* Platform Benefits with GlassIcons */}
-          <div className="mt-16">
-            <GlassIcons items={platformBenefits} className="max-w-4xl" />
-          </div>
-        </div>
-      </section>
-
-      {/* Search Bar */}
-      <section className="bg-dark-card border-b border-dark-border">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="max-w-2xl mx-auto">
+          {/* Search Bar */}
+          <div className="max-w-2xl mt-8">
             <div className="relative">
               <input
                 type="text"
-                placeholder="Søg efter kurser, kategorier eller udbydere..."
+                placeholder={`Søg i ${currentCategory.name.toLowerCase()} kurser...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-6 py-4 pl-14 bg-dark-bg border border-dark-border rounded-xl text-white placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
@@ -180,7 +94,7 @@ export default function Home({ courses, categories }: Props) {
               </svg>
             </div>
             {searchQuery && (
-              <p className="mt-3 text-sm text-dark-text-secondary text-center">
+              <p className="mt-3 text-sm text-dark-text-secondary">
                 Viser {filteredCourses.length} af {courses.length} kurser
               </p>
             )}
@@ -189,26 +103,13 @@ export default function Home({ courses, categories }: Props) {
       </section>
 
       {/* Main Content with Sidebar */}
-      <section className="max-w-7xl mx-auto px-6 py-12 flex-1" data-section="courses">
+      <section className="max-w-7xl mx-auto px-6 py-12 flex-1">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Category Sidebar */}
-          <CategorySidebar categories={categories} activeSlug={null} />
+          <CategorySidebar categories={categories} activeSlug={currentCategory.slug} />
 
           {/* Course Grid */}
           <div className="flex-1">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-2xl font-bold text-white">
-                  Alle kurser
-                </h2>
-                <p className="text-dark-text-secondary mt-1">
-                  {filteredCourses.length} {filteredCourses.length === 1 ? 'kursus' : 'kurser'} tilgængelig{filteredCourses.length === 1 ? 't' : 'e'}
-                </p>
-              </div>
-            </div>
-
-            {/* Course Cards */}
             {filteredCourses.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredCourses.map(course => (
@@ -276,8 +177,8 @@ export default function Home({ courses, categories }: Props) {
                 <h3 className="text-2xl font-semibold text-white mb-4">Ingen kurser fundet</h3>
                 <p className="text-dark-text-secondary mb-8">
                   {searchQuery
-                    ? `Vi kunne ikke finde nogen kurser der matcher "${searchQuery}"`
-                    : 'Der er ingen tilgængelige kurser i øjeblikket'
+                    ? `Vi kunne ikke finde nogen kurser der matcher "${searchQuery}" i ${currentCategory.name}`
+                    : `Der er ingen tilgængelige kurser i ${currentCategory.name} i øjeblikket`
                   }
                 </p>
                 {searchQuery && (
@@ -299,11 +200,47 @@ export default function Home({ courses, categories }: Props) {
   )
 }
 
-export const getServerSideProps: GetServerSideProps = async () => {
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { slug } = context.params as { slug: string }
+
   try {
+    // Find the category by slug
+    const currentCategory = await prisma.category.findUnique({
+      where: {
+        slug: slug,
+        isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        icon: true,
+        color: true,
+        _count: {
+          select: {
+            courses: {
+              where: {
+                status: 'PUBLISHED',
+                isActive: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // If category not found, return 404
+    if (!currentCategory) {
+      return {
+        notFound: true
+      }
+    }
+
+    // Fetch courses and all categories in parallel
     const [courses, categories] = await Promise.all([
       prisma.course.findMany({
         where: {
+          categoryId: currentCategory.id,
           status: 'PUBLISHED',
           isActive: true
         },
@@ -364,15 +301,13 @@ export const getServerSideProps: GetServerSideProps = async () => {
       props: {
         courses,
         categories,
+        currentCategory,
       },
     }
   } catch (error) {
-    console.error('Error fetching data:', error)
+    console.error('Error fetching category data:', error)
     return {
-      props: {
-        courses: [],
-        categories: [],
-      },
+      notFound: true
     }
   }
 }

@@ -81,19 +81,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-dark-bg flex flex-col">
       <Navigation minimal />
 
       <div className="flex-1 flex items-center justify-center py-12 px-6">
-        <div className="bg-card rounded-2xl p-8 shadow-lg w-full max-w-md">
+        <div className="bg-dark-card border border-dark-border rounded-2xl p-8 shadow-xl w-full max-w-md">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-text-light mb-2">Velkommen tilbage</h1>
-            <p className="text-text-muted">Log ind eller opret en ny konto</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Velkommen tilbage</h1>
+            <p className="text-dark-text-secondary">Log ind eller opret en ny konto</p>
           </div>
 
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-text-light mb-2">Email</label>
+              <label className="block text-sm font-medium text-white mb-2">Email</label>
               <input
                 type="email"
                 placeholder="din@email.dk"
@@ -101,12 +101,12 @@ export default function LoginPage() {
                 onChange={e => setEmail(e.target.value)}
                 disabled={loading}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
-                className="w-full px-4 py-3 bg-background border border-text-muted/20 rounded-xl text-text-light placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+                className="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-xl text-white placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50 transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-light mb-2">Adgangskode</label>
+              <label className="block text-sm font-medium text-white mb-2">Adgangskode</label>
               <input
                 type="password"
                 placeholder="••••••••"
@@ -114,7 +114,7 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 disabled={loading}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
-                className="w-full px-4 py-3 bg-background border border-text-muted/20 rounded-xl text-text-light placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+                className="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-xl text-white placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50 transition-colors"
               />
             </div>
 
@@ -122,7 +122,7 @@ export default function LoginPage() {
               <button
                 onClick={handleSignIn}
                 disabled={loading}
-                className="flex-1 px-6 py-3 bg-primary rounded-xl text-white hover:bg-primary-dark transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-h-[48px]"
+                className="flex-1 px-6 py-3 bg-primary rounded-xl text-white hover:bg-primary/90 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-h-[48px] shadow-lg shadow-primary/20"
               >
                 {loading ? (
                   <>
@@ -136,7 +136,7 @@ export default function LoginPage() {
               <button
                 onClick={handleSignUp}
                 disabled={loading}
-                className="flex-1 px-6 py-3 bg-card border border-secondary text-secondary hover:bg-secondary hover:text-white rounded-xl transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-6 py-3 bg-dark-card border border-dark-border text-white hover:bg-dark-hover rounded-xl transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Opret bruger
               </button>
@@ -154,7 +154,7 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-8 text-center space-y-4">
-            <p className="text-sm text-text-muted">
+            <p className="text-sm text-dark-text-secondary">
               Vil du blive kursusudbyder?{' '}
               <Link href="/register-provider" className="text-accent hover:underline transition-all">
                 Ansøg her

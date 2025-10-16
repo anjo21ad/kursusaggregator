@@ -53,13 +53,13 @@ export default function MyCoursesPage() {
   }, [router])
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-dark-bg flex flex-col">
       <Navigation />
 
       <div className="flex-1 max-w-5xl mx-auto px-6 py-12 w-full">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-text-light">Mine Kurser</h1>
-          <p className="text-text-muted mt-2">Se og tilgå alle dine købte kurser</p>
+          <h1 className="text-3xl font-bold text-white">Mine Kurser</h1>
+          <p className="text-dark-text-secondary mt-2">Se og tilgå alle dine købte kurser</p>
         </div>
 
         {loading ? (
@@ -69,11 +69,11 @@ export default function MyCoursesPage() {
         ) : error ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">❌</div>
-            <h2 className="text-2xl font-semibold text-text-light mb-4">Der opstod en fejl</h2>
-            <p className="text-text-muted mb-8">{error}</p>
+            <h2 className="text-2xl font-semibold text-white mb-4">Der opstod en fejl</h2>
+            <p className="text-dark-text-secondary mb-8">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-primary rounded-xl text-white hover:bg-primary-dark transition-colors font-semibold"
+              className="px-6 py-3 bg-primary rounded-xl text-white hover:bg-primary/90 transition-colors font-semibold shadow-lg shadow-primary/20"
             >
               Prøv igen
             </button>
@@ -81,11 +81,11 @@ export default function MyCoursesPage() {
         ) : courses.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">📚</div>
-            <h2 className="text-2xl font-semibold text-text-light mb-4">Ingen kurser endnu</h2>
-            <p className="text-text-muted mb-8">Du har endnu ikke købt nogen kurser</p>
+            <h2 className="text-2xl font-semibold text-white mb-4">Ingen kurser endnu</h2>
+            <p className="text-dark-text-secondary mb-8">Du har endnu ikke købt nogen kurser</p>
             <Link
               href="/"
-              className="inline-block px-6 py-3 bg-primary rounded-xl text-white hover:bg-primary-dark transition-colors font-semibold"
+              className="inline-block px-6 py-3 bg-primary rounded-xl text-white hover:bg-primary/90 transition-colors font-semibold shadow-lg shadow-primary/20"
             >
               Udforsk Kurser
             </Link>
@@ -95,10 +95,10 @@ export default function MyCoursesPage() {
             {courses.map(course => (
               <div
                 key={course.id}
-                className="bg-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all group"
+                className="bg-dark-card border border-dark-border rounded-2xl p-6 hover:border-primary/50 transition-all group"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-text-light group-hover:text-primary transition-colors">
+                  <h2 className="text-xl font-semibold text-white group-hover:text-primary transition-colors">
                     {course.title}
                   </h2>
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success/20 text-success">
@@ -106,15 +106,15 @@ export default function MyCoursesPage() {
                   </span>
                 </div>
 
-                <p className="text-text-muted mb-4 line-clamp-2">{course.description}</p>
+                <p className="text-dark-text-secondary mb-4 line-clamp-2">{course.description}</p>
 
-                <div className="border-t border-text-muted/20 pt-4 mb-4">
-                  <p className="text-sm text-text-muted">Udbyder: {course.provider}</p>
+                <div className="border-t border-dark-border pt-4 mb-4">
+                  <p className="text-sm text-dark-text-secondary">Udbyder: {course.provider}</p>
                 </div>
 
                 <Link
                   href={`/courses/${course.id}`}
-                  className="w-full block px-4 py-3 bg-primary rounded-xl text-white text-center hover:bg-primary-dark transition-colors font-semibold"
+                  className="w-full block px-4 py-3 bg-primary rounded-xl text-white text-center hover:bg-primary/90 transition-colors font-semibold shadow-lg shadow-primary/20"
                 >
                   Åbn Kursus
                 </Link>

@@ -16,7 +16,13 @@ export default {
         'text-light': '#F5F5F7',
         'text-muted': '#A0A0B2',
         accent: '#3ABEFF',
-        success: '#38D39F'
+        success: '#38D39F',
+        // Dark theme colors
+        'dark-bg': '#0F0F1A',
+        'dark-card': '#1C1C2E',
+        'dark-border': '#2A2A3E',
+        'dark-hover': '#252538',
+        'dark-text-secondary': '#A0A0B2'
       },
     },
   },

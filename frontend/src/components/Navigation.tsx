@@ -137,7 +137,7 @@ export default function Navigation({ minimal = false }: NavigationProps) {
             )}
 
             <Link
-              href="#"
+              href="/for-virksomheder"
               className="text-text-muted hover:text-text-light transition-colors"
             >
               For Virksomheder
@@ -234,7 +234,7 @@ export default function Navigation({ minimal = false }: NavigationProps) {
             )}
 
             <Link
-              href="#"
+              href="/for-virksomheder"
               className="block py-2 text-text-muted hover:text-text-light transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
