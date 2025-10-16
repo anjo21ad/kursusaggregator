@@ -24,10 +24,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    // Get course details for price
+    const course = await prisma.course.findUnique({
+      where: { id: Number(courseId) }
+    })
+
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' })
+    }
+
     const purchase = await prisma.purchase.create({
       data: {
         userId: user.id,
-        courseId: courseId,
+        courseId: Number(courseId),
+        priceCents: course.priceCents,
       },
     })
 

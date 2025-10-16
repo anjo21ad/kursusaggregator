@@ -7,29 +7,188 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Enums for better type safety
+enum UserRole {
+  COMPANY_USER      // Regular employee in a company
+  COMPANY_ADMIN     // Company administrator who can manage purchases
+  PROVIDER          // Course provider who can create/manage courses  
+  SUPER_ADMIN       // Platform administrator
+}
+
+enum ProviderStatus {
+  PENDING           // Awaiting approval
+  APPROVED          // Active provider
+  SUSPENDED         // Temporarily disabled
+  REJECTED          // Application rejected
+}
+
+enum CourseStatus {
+  DRAFT             // Being created by provider
+  PENDING_REVIEW    // Awaiting admin approval
+  PUBLISHED         // Live and purchasable
+  ARCHIVED          // No longer available
+}
+
+enum PurchaseType {
+  DIRECT_SALE       // Direct purchase with commission
+  LEAD_GENERATION   // Inquiry/lead for provider
+}
+
+// Core User model - connected to Supabase Auth
 model User {
-  id     String @id @default(uuid()) @db.VarChar(255)
-  email  String @unique
-  role   String @default("USER")
+  id          String   @id @default(uuid()) @db.VarChar(255)
+  email       String   @unique
+  firstName   String?
+  lastName    String?
+  role        UserRole @default(COMPANY_USER)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  companyId   Int?
+  company     Company? @relation(fields: [companyId], references: [id])
+  providerId  Int?
+  provider    Provider? @relation(fields: [providerId], references: [id])
+  purchases   Purchase[]
+  leads       Lead[]
+
+  @@map("users")
 }
 
+// Company model for B2B customers
+model Company {
+  id          Int      @id @default(autoincrement())
+  name        String
+  cvr         String?  @unique // Danish CVR number
+  email       String   @unique
+  phone       String?
+  address     String?
+  city        String?
+  postalCode  String?
+  website     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations  
+  users       User[]
+  purchases   Purchase[]
+  leads       Lead[]
+
+  @@map("companies")
+}
+
+// Provider model for course creators
+model Provider {
+  id             Int            @id @default(autoincrement())
+  companyName    String
+  contactEmail   String         @unique
+  phone          String?
+  website        String?
+  description    String?
+  address        String?
+  city           String?
+  postalCode     String?
+  cvr            String?        @unique
+  status         ProviderStatus @default(PENDING)
+  approvedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relations
+  users          User[]         // Provider admin users
+  courses        Course[]
+  leads          Lead[]
+
+  @@map("providers")
+}
+
+// Course categories for better organization
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  parentId    Int?
+  parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  courses     Course[]
+
+  @@map("categories")
+}
+
+// Enhanced Course model
 model Course {
-  id          Int       @id @default(autoincrement())
-  title       String
-  description String
-  priceCents  Int
-  provider    String
+  id            Int          @id @default(autoincrement())
+  title         String
+  description   String
+  shortDesc     String?      // Short description for listings
+  priceCents    Int
+  duration      String?      // e.g. "2 days", "3 hours"
+  maxParticipants Int?
+  location      String?      // Physical location or "Online"
+  language      String       @default("da") // ISO language code
+  level         String?      // Beginner, Intermediate, Advanced
+  status        CourseStatus @default(DRAFT)
+  isActive      Boolean      @default(true)
+  publishedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  purchases   Purchase[] @relation("CourseToPurchase")
+  // Relations
+  providerId    Int
+  provider      Provider     @relation(fields: [providerId], references: [id])
+  categoryId    Int
+  category      Category     @relation(fields: [categoryId], references: [id])
+  purchases     Purchase[]
+  leads         Lead[]
+
+  @@map("courses")
 }
 
+// Enhanced Purchase model with company relation
 model Purchase {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  courseId  Int
-  createdAt DateTime @default(now())
+  id          Int          @id @default(autoincrement())
+  userId      String
+  courseId    Int
+  companyId   Int?         // Which company made the purchase
+  type        PurchaseType @default(DIRECT_SALE)
+  priceCents  Int          // Price at time of purchase
+  commission  Int?         // Commission taken (in cents)
+  stripeSessionId String?  // For payment tracking
+  createdAt   DateTime     @default(now())
 
-  course    Course   @relation("CourseToPurchase", fields: [courseId], references: [id])
+  // Relations
+  user        User         @relation(fields: [userId], references: [id])
+  course      Course       @relation(fields: [courseId], references: [id])
+  company     Company?     @relation(fields: [companyId], references: [id])
+
+  @@map("purchases")
+}
+
+// Lead generation for inquiries
+model Lead {
+  id          Int      @id @default(autoincrement())
+  userId      String   // User who made inquiry
+  courseId    Int      // Course they're interested in
+  companyId   Int      // Company making inquiry
+  providerId  Int      // Provider receiving lead
+  message     String?  // Custom message from company
+  status      String   @default("NEW") // NEW, CONTACTED, CONVERTED, CLOSED
+  isConverted Boolean  @default(false)
+  convertedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
+  course      Course   @relation(fields: [courseId], references: [id])  
+  company     Company  @relation(fields: [companyId], references: [id])
+  provider    Provider @relation(fields: [providerId], references: [id])
+
+  @@map("leads")
 }
 
 

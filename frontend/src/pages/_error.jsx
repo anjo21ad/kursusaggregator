@@ -1,12 +1,13 @@
-import * as Sentry from '@sentry/nextjs';
 import Error from "next/error";
 
-// Replace "YourCustomErrorComponent" with your custom error component!
-YourCustomErrorComponent.getInitialProps = async (contextData) => {
-  await Sentry.captureUnderscoreErrorException(contextData);
+function CustomErrorComponent(props) {
+  return <Error statusCode={props.statusCode} />;
+}
 
-  // ...other getInitialProps code
-
+CustomErrorComponent.getInitialProps = async (contextData) => {
+  // Sentry disabled for now
+  // TODO: Re-enable Sentry when configured
+  
   return Error.getInitialProps(contextData);
 };
 
