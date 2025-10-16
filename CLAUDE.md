@@ -179,6 +179,7 @@ UPSTASH_REDIS_REST_TOKEN="..."
 ## Documentation
 
 Additional documentation can be found in the `/docs` directory:
+- [Web Design Style Guide](docs/WEB-DESIGN-STYLEGUIDE.md) - Complete design system documentation
 - [Migration Guide](docs/MIGRATION-GUIDE.md) - Database migration strategies
 - [Provider Workflow Test](docs/PROVIDER-WORKFLOW-TEST.md) - Provider feature testing
 - [Style Guide](docs/STYLEGUIDE.md) - UI/UX and coding standards
