@@ -117,15 +117,23 @@ export default function Home({ courses }: Props) {
 export const getServerSideProps: GetServerSideProps = async () => {
   try {
     const courses = await prisma.course.findMany({
-      include: {
+      where: {
+        status: 'PUBLISHED',
+        isActive: true
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        priceCents: true,
         provider: {
           select: {
             companyName: true
           }
         }
       }
-      // Removed status filter since Course table might not have status column yet
     })
+
     return {
       props: {
         courses,
