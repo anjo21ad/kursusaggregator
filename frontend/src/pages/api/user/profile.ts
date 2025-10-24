@@ -12,12 +12,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'No authorization token provided' })
   }
 
+  // Verificer token med Supabase først (dette virker altid via HTTPS)
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+  if (authError || !user) {
+    return res.status(401).json({ error: 'Invalid token' })
+  }
+
   try {
-    // Verificer token med Supabase
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return res.status(401).json({ error: 'Invalid token' })
-    }
 
     // Hent bruger info fra vores database
     const dbUser = await prisma.user.findUnique({
@@ -42,8 +43,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     })
 
+    // If user doesn't exist in our DB, create them automatically
     if (!dbUser) {
-      return res.status(404).json({ error: 'User not found in database' })
+      const newUser = await prisma.user.create({
+        data: {
+          id: user.id,
+          email: user.email!,
+          firstName: user.user_metadata?.firstName || null,
+          lastName: user.user_metadata?.lastName || null,
+          role: 'COMPANY_USER', // Default role
+        },
+      })
+
+      return res.status(200).json({
+        id: newUser.id,
+        email: newUser.email,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        role: newUser.role,
+        isActive: newUser.isActive,
+        createdAt: newUser.createdAt,
+        company: null,
+        provider: null
+      })
     }
 
     // Return user profile data
@@ -60,10 +82,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
 
   } catch (error) {
-    console.error('User profile fetch error:', error)
-    res.status(500).json({
-      error: 'Failed to fetch user profile',
-      details: process.env.NODE_ENV === 'development' ? error : undefined
-    })
+    // Database is unavailable (firewall blocking PostgreSQL)
+    // Return basic profile from Supabase Auth instead (user is already verified above)
+    console.warn('⚠️  Database unavailable, using Supabase Auth data only');
+    console.warn('Database error:', error instanceof Error ? error.message : String(error));
+
+    return res.status(200).json({
+      id: user.id,
+      email: user.email,
+      firstName: user.user_metadata?.firstName || null,
+      lastName: user.user_metadata?.lastName || null,
+      role: user.user_metadata?.role || 'COMPANY_USER',
+      isActive: true,
+      createdAt: user.created_at,
+      company: null,
+      provider: null,
+      _dbUnavailable: true // Flag to indicate limited functionality
+    });
   }
 }

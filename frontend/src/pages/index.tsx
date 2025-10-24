@@ -1,5 +1,6 @@
 import { GetServerSideProps } from 'next'
 import { prisma } from '@/lib/prisma'
+import { fetchPublishedCourses, fetchActiveCategories } from '@/lib/supabase-prisma-adapter'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '@/lib/supabaseClient'
@@ -8,7 +9,6 @@ import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
 import CategorySidebar from '@/components/CategorySidebar'
 import CourseBadge from '@/components/CourseBadge'
-import GlassIcons from '@/components/GlassIcons'
 
 type Course = {
   id: number
@@ -84,29 +84,6 @@ export default function Home({ courses, categories }: Props) {
     course.category.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Platform benefits for GlassIcons
-  const platformBenefits = [
-    {
-      icon: <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-      color: 'primary',
-      label: 'Godkendte Udbydere'
-    },
-    {
-      icon: <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
-      color: 'secondary',
-      label: 'Hurtig Administration'
-    },
-    {
-      icon: <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
-      color: 'accent',
-      label: 'Team Samarbejde'
-    },
-    {
-      icon: <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
-      color: 'success',
-      label: 'Tracking & Rapporter'
-    }
-  ]
 
   return (
     <div className="min-h-screen bg-dark-bg flex flex-col">
@@ -149,11 +126,6 @@ export default function Home({ courses, categories }: Props) {
             >
               Se demo
             </button>
-          </div>
-
-          {/* Platform Benefits with GlassIcons */}
-          <div className="mt-16">
-            <GlassIcons items={platformBenefits} className="max-w-4xl" />
           </div>
         </div>
       </section>
@@ -207,6 +179,27 @@ export default function Home({ courses, categories }: Props) {
                 </p>
               </div>
             </div>
+
+            {/* Database Connection Error */}
+            {courses.length === 0 && (
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-8 text-center">
+                <div className="text-6xl mb-4">⚠️</div>
+                <h3 className="text-xl font-bold text-yellow-400 mb-2">
+                  Database Forbindelse Fejlet
+                </h3>
+                <p className="text-dark-text-secondary mb-4">
+                  Kunne ikke forbinde til databasen. Dette skyldes sandsynligvis en firewall der blokerer PostgreSQL forbindelser.
+                </p>
+                <div className="bg-dark-card border border-dark-border rounded-lg p-4 text-left text-sm text-dark-text-secondary">
+                  <p className="mb-2"><strong className="text-white">Løsninger:</strong></p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li>Forbind til et andet netværk (hjemme, mobil hotspot)</li>
+                    <li>Brug VPN for at omgå firewallen</li>
+                    <li>Kontakt IT-support for at åbne port 6543 til *.pooler.supabase.com</li>
+                  </ul>
+                </div>
+              </div>
+            )}
 
             {/* Course Cards */}
             {filteredCourses.length > 0 ? (
@@ -301,38 +294,44 @@ export default function Home({ courses, categories }: Props) {
 
 export const getServerSideProps: GetServerSideProps = async () => {
   try {
-    const [courses, categories] = await Promise.all([
-      prisma.course.findMany({
-        where: {
-          status: 'PUBLISHED',
-          isActive: true
-        },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          shortDesc: true,
-          priceCents: true,
-          duration: true,
-          location: true,
-          level: true,
-          category: {
-            select: {
-              name: true,
-              icon: true,
-              color: true
+    // Add timeout to database queries to fail fast
+    const queryTimeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Database connection timeout')), 5000)
+    );
+
+    const [courses, categories] = await Promise.race([
+      Promise.all([
+        prisma.course.findMany({
+          where: {
+            status: 'PUBLISHED',
+            isActive: true
+          },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            shortDesc: true,
+            priceCents: true,
+            duration: true,
+            location: true,
+            level: true,
+            category: {
+              select: {
+                name: true,
+                icon: true,
+                color: true
+              }
+            },
+            provider: {
+              select: {
+                companyName: true
+              }
             }
           },
-          provider: {
-            select: {
-              companyName: true
-            }
+          orderBy: {
+            id: 'desc'
           }
-        },
-        orderBy: {
-          id: 'desc'
-        }
-      }),
+        }),
       prisma.category.findMany({
         where: {
           isActive: true
@@ -358,7 +357,9 @@ export const getServerSideProps: GetServerSideProps = async () => {
           sortOrder: 'asc'
         }
       })
-    ])
+      ]),
+      queryTimeout
+    ]) as [Course[], Category[]];
 
     return {
       props: {
@@ -367,12 +368,32 @@ export const getServerSideProps: GetServerSideProps = async () => {
       },
     }
   } catch (error) {
-    console.error('Error fetching data:', error)
-    return {
-      props: {
-        courses: [],
-        categories: [],
-      },
+    console.error('⚠️  PostgreSQL connection failed:', error instanceof Error ? error.message : String(error));
+    console.log('🔄 Falling back to Supabase REST API (HTTPS)...');
+
+    // Fallback: Use Supabase REST API when PostgreSQL is blocked
+    try {
+      const [courses, categories] = await Promise.all([
+        fetchPublishedCourses(),
+        fetchActiveCategories(),
+      ]);
+
+      console.log(`✅ Successfully fetched ${courses.length} courses via REST API`);
+
+      return {
+        props: {
+          courses: courses as any,
+          categories: categories as any,
+        },
+      };
+    } catch (apiError) {
+      console.error('❌ REST API also failed:', apiError);
+      return {
+        props: {
+          courses: [],
+          categories: [],
+        },
+      };
     }
   }
 }

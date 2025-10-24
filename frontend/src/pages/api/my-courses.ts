@@ -36,6 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(200).json(courses)
   } catch (err) {
     console.error('Fejl ved hentning af brugerens kurser:', err)
-    res.status(500).json({ error: 'Serverfejl' })
+    // Return empty array instead of crashing when database is unavailable
+    res.status(200).json([])
   }
 }

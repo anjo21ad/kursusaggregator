@@ -14,7 +14,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { course } = req.body
 
   if (!course) {
+    console.error('Checkout API: Missing course data. Received body:', JSON.stringify(req.body))
     return res.status(400).json({ error: 'Missing course data' })
+  }
+
+  // Validate course object has required fields
+  if (!course.id || !course.title || !course.priceCents) {
+    console.error('Checkout API: Invalid course data. Missing required fields:', {
+      hasId: !!course.id,
+      hasTitle: !!course.title,
+      hasPriceCents: !!course.priceCents,
+      course
+    })
+    return res.status(400).json({ error: 'Invalid course data' })
   }
 
   try {

@@ -309,14 +309,32 @@ export default function CoursePage({ course }: Props) {
                               'Content-Type': 'application/json',
                               Authorization: `Bearer ${session.access_token}`,
                             },
-                            body: JSON.stringify({ courseId: course.id }),
+                            body: JSON.stringify({
+                              course: {
+                                id: course.id,
+                                title: course.title,
+                                description: course.description,
+                                priceCents: course.priceCents
+                              }
+                            }),
                           })
 
                           const data = await res.json()
+
+                          if (!res.ok) {
+                            console.error('Checkout failed:', res.status, data)
+                            alert(`Betalingsfejl: ${data.error || 'Kunne ikke oprette betaling'}`)
+                            return
+                          }
+
                           if (data.url) {
                             window.location.href = data.url
+                          } else {
+                            console.error('No URL returned from checkout:', data)
+                            alert('Der opstod en fejl: Ingen betalingslink modtaget')
                           }
                         } catch (err) {
+                          console.error('Checkout error:', err)
                           alert('Der opstod en fejl ved oprettelse af betaling')
                         }
                       }}
