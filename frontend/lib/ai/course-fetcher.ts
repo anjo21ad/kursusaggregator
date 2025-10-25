@@ -1,7 +1,9 @@
 // Fetch and format courses for AI matching
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import {
+  fetchCoursesForAI as fetchCoursesFromAdapter,
+  fetchCourseById,
+  fetchUserProfile
+} from '@/lib/database-adapter';
 
 export interface FetchCoursesOptions {
   limit?: number;
@@ -13,77 +15,27 @@ export interface FetchCoursesOptions {
 
 /**
  * Fetch published courses from database for AI matching
- * Includes provider and category information
+ * Uses hybrid database adapter (Supabase REST API for reliability)
  */
 export async function fetchCoursesForAI(options: FetchCoursesOptions = {}) {
-  const {
-    limit = 50, // Default to 50 courses to avoid overwhelming the AI
-    category,
-    minPrice,
-    maxPrice,
-    language = 'da',
-  } = options;
-
   try {
-    const courses = await prisma.course.findMany({
-      where: {
-        AND: [
-          { status: 'PUBLISHED' },
-          { isActive: true },
-          { provider: { status: 'APPROVED' } }, // Only approved providers
-          ...(category ? [{ category: { slug: category } }] : []),
-          ...(minPrice ? [{ priceCents: { gte: minPrice * 100 } }] : []),
-          ...(maxPrice ? [{ priceCents: { lte: maxPrice * 100 } }] : []),
-          ...(language ? [{ language }] : []),
-        ],
-      },
-      include: {
-        provider: {
-          select: {
-            id: true,
-            companyName: true,
-            status: true,
-          },
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-      },
-      take: limit,
-      orderBy: [
-        { publishedAt: 'desc' }, // Newest first
-      ],
-    });
-
+    // Use hybrid adapter instead of Prisma
+    const courses = await fetchCoursesFromAdapter(options);
     return courses;
   } catch (error) {
     console.error('Error fetching courses for AI:', error);
-    throw new Error('Failed to fetch courses from database');
+    return []; // Return empty array instead of throwing
   }
 }
 
 /**
  * Get company context for a user
+ * Uses hybrid database adapter (Supabase REST API for reliability)
  */
 export async function getCompanyContext(userId: string) {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        company: {
-          select: {
-            name: true,
-            cvr: true,
-            address: true,
-            city: true,
-          },
-        },
-      },
-    });
+    // Use hybrid adapter instead of Prisma
+    const user = await fetchUserProfile(userId);
 
     if (!user || !user.company) {
       return {
@@ -110,31 +62,12 @@ export async function getCompanyContext(userId: string) {
 
 /**
  * Get a specific course by ID with full details
+ * Uses hybrid database adapter (Supabase REST API for reliability)
  */
 export async function getCourseById(courseId: number) {
   try {
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-      include: {
-        provider: {
-          select: {
-            id: true,
-            companyName: true,
-            contactEmail: true,
-            phone: true,
-            website: true,
-          },
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-      },
-    });
-
+    // Use hybrid adapter instead of Prisma
+    const course = await fetchCourseById(courseId);
     return course;
   } catch (error) {
     console.error('Error fetching course by ID:', error);

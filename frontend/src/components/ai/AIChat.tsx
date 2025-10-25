@@ -88,16 +88,8 @@ export const AIChat: React.FC<AIChatProps> = ({ initialMessage }) => {
         throw new Error('No response stream');
       }
 
-      // Create streaming AI message
-      let aiMessage: Message = {
-        id: `ai_${Date.now()}`,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date(),
-        isStreaming: true,
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
+      // Don't show raw JSON - only show loading indicator then structured response
+      let rawJsonContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -113,28 +105,10 @@ export const AIChat: React.FC<AIChatProps> = ({ initialMessage }) => {
             const data = JSON.parse(line.slice(6));
 
             if (data.type === 'chunk') {
-              // Update streaming message
-              aiMessage = {
-                ...aiMessage,
-                content: aiMessage.content + data.text,
-              };
-
-              setMessages((prev) => [
-                ...prev.slice(0, -1),
-                aiMessage,
-              ]);
+              // Accumulate raw JSON but don't display it
+              rawJsonContent += data.text;
             } else if (data.type === 'complete') {
-              // Stream complete, show structured response
-              aiMessage = {
-                ...aiMessage,
-                isStreaming: false,
-              };
-
-              setMessages((prev) => [
-                ...prev.slice(0, -1),
-                aiMessage,
-              ]);
-
+              // Stream complete, show only structured response (not raw JSON)
               setCurrentResponse(data.response);
             } else if (data.type === 'error') {
               throw new Error(data.error);
@@ -188,7 +162,7 @@ export const AIChat: React.FC<AIChatProps> = ({ initialMessage }) => {
   return (
     <div className="flex flex-col h-full">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 pt-6 pb-4 space-y-4">
         {/* Welcome message */}
         {messages.length === 0 && (
           <div className="text-center py-12">

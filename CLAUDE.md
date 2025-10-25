@@ -42,7 +42,9 @@ docker-compose up    # Run with PostgreSQL database
 ### Current Tech Stack
 - **Next.js 15.1.8** with Pages Router (not App Router)
 - **TypeScript** for type safety
-- **Prisma 6.8.2** as ORM with PostgreSQL
+- **Hybrid Database Strategy**:
+  - **Supabase REST API** for READ queries (reliable over HTTPS, bypasses network issues)
+  - **Prisma 6.8.2** for WRITE queries (type-safety, migrations, transactions)
 - **Supabase** for authentication and user management
 - **Stripe** for payment processing
 - **Sentry** for error monitoring and performance tracking
@@ -93,8 +95,9 @@ frontend/
 │   │   └── my-courses.tsx # User's purchased courses
 │   └── instrumentation.ts # Sentry configuration
 ├── lib/
-│   ├── prisma.ts        # Prisma client configuration
-│   └── supabaseClient.ts # Supabase client setup
+│   ├── database-adapter.ts  # Hybrid database adapter (READ: Supabase, WRITE: Prisma)
+│   ├── prisma.ts            # Prisma client configuration
+│   └── supabaseClient.ts    # Supabase client setup
 ├── prisma/
 │   ├── schema.prisma    # Database schema
 │   └── seed.js          # Database seed data
@@ -102,6 +105,43 @@ frontend/
 ```
 
 ## Key Implementation Details
+
+### Hybrid Database Strategy 🆕
+
+**Why Hybrid?**
+The application uses a hybrid database access pattern to handle unstable network conditions while maintaining Prisma's benefits for long-term development.
+
+**Architecture:**
+```
+READ Queries:  User → Next.js → Supabase REST API (HTTPS/443) → PostgreSQL
+WRITE Queries: User → Next.js → Prisma → PostgreSQL (Session pooler/5432)
+```
+
+**Implementation: [lib/database-adapter.ts](lib/database-adapter.ts)**
+
+**READ Operations (Supabase REST API):**
+- `fetchPublishedCourses()` - Homepage course listing
+- `fetchCourseById(id)` - Course detail pages
+- `fetchUserCourses(userId)` - User's purchased courses
+- `fetchActiveCategories()` - Category navigation
+- `fetchAdminStats()` - Admin dashboard statistics
+- `checkCourseAccess(userId, courseId)` - Access verification
+
+**WRITE Operations (Prisma):**
+- `createPurchase(data)` - Course purchases
+- `updateCourseStatus(id, status)` - Admin course moderation
+- `updateProviderStatus(id, status)` - Admin provider moderation
+- All other CREATE, UPDATE, DELETE operations
+
+**Benefits:**
+- ✅ Reliable READ operations even with unstable network (HTTPS bypasses firewall)
+- ✅ Type-safe WRITE operations with Prisma
+- ✅ Maintains schema migrations with Prisma
+- ✅ Aligns with MVP-first approach
+- ✅ Production-ready for Vercel deployment
+
+**Date Handling:**
+All date fields are returned as ISO 8601 strings for Next.js JSON serialization compatibility.
 
 ### Authentication Flow
 - Uses Supabase for user authentication

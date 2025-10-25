@@ -150,7 +150,7 @@ export default function Navigation({ minimal = false }: NavigationProps) {
 
             {user?.role === 'SUPER_ADMIN' && (
               <Link
-                href="/admin/providers"
+                href="/admin/dashboard"
                 className={`text-text-muted hover:text-text-light transition-colors ${
                   router.pathname.startsWith('/admin') ? 'text-primary font-semibold' : ''
                 }`}
@@ -257,7 +257,7 @@ export default function Navigation({ minimal = false }: NavigationProps) {
 
             {user?.role === 'SUPER_ADMIN' && (
               <Link
-                href="/admin/providers"
+                href="/admin/dashboard"
                 className="block py-2 text-text-muted hover:text-text-light transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >

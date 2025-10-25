@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { supabase } from '@/lib/supabaseClient'
-import { prisma } from '@/lib/prisma'
+import { fetchCourseById, createPurchase } from '@/lib/database-adapter'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -24,26 +24,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Get course details for price
-    const course = await prisma.course.findUnique({
-      where: { id: Number(courseId) }
-    })
+    // Get course details for price (READ - use adapter)
+    const course = await fetchCourseById(Number(courseId))
 
     if (!course) {
       return res.status(404).json({ error: 'Course not found' })
     }
 
-    const purchase = await prisma.purchase.create({
-      data: {
-        userId: user.id,
-        courseId: Number(courseId),
-        priceCents: course.priceCents,
-      },
+    // Create purchase (WRITE - uses Prisma via adapter)
+    const purchase = await createPurchase({
+      userId: user.id,
+      courseId: Number(courseId),
+      priceCents: course.priceCents,
     })
 
     res.status(200).json(purchase)
   } catch (err) {
-    console.error(err)
+    console.error('Purchase error:', err)
     res.status(500).json({ error: 'Failed to register purchase' })
   }
 }

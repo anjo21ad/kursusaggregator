@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { supabase } from '@/lib/supabaseClient'
+import { supabaseAdmin } from '@/lib/supabaseClient'
 import { prisma } from '@/lib/prisma'
 
 interface ProviderRegistrationData {
@@ -84,8 +84,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
     }
 
-    // Opret bruger i Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    // Opret bruger i Supabase Auth (using admin client)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: userEmail,
       password: userPassword,
       email_confirm: true, // Auto-confirm for B2B providers

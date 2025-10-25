@@ -1,5 +1,5 @@
 import { GetServerSideProps } from 'next'
-import { prisma } from '@/lib/prisma'
+import { fetchCourseById } from '@/lib/database-adapter'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/router'
@@ -29,7 +29,7 @@ type Course = {
 }
 
 type Props = {
-  course: Course | null
+  course: Course
 }
 
 export default function CoursePage({ course }: Props) {
@@ -76,33 +76,8 @@ export default function CoursePage({ course }: Props) {
       }
     }
 
-    if (course) {
-      checkAccess()
-    }
+    checkAccess()
   }, [course, router])
-
-  // Course not found
-  if (!course) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Navigation />
-        <div className="flex-1 flex items-center justify-center py-12 px-6">
-          <div className="text-center">
-            <div className="text-6xl mb-4">🔍</div>
-            <h1 className="text-3xl font-bold text-text-light mb-4">Kursus ikke fundet</h1>
-            <p className="text-text-muted mb-8">Det kursus du leder efter findes ikke eller er blevet fjernet.</p>
-            <Link
-              href="/"
-              className="inline-block px-6 py-3 bg-primary rounded-xl text-white hover:bg-primary-dark transition-colors font-semibold"
-            >
-              Tilbage til kurser
-            </Link>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    )
-  }
 
   // Format price
   const formatPrice = (cents: number) => {
@@ -406,51 +381,22 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   if (isNaN(id)) {
     return {
-      props: {
-        course: null,
-      },
+      notFound: true,
     }
   }
 
-  try {
-    const course = await prisma.course.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        shortDesc: true,
-        priceCents: true,
-        duration: true,
-        maxParticipants: true,
-        location: true,
-        language: true,
-        level: true,
-        provider: {
-          select: {
-            companyName: true,
-            website: true,
-          },
-        },
-        category: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    })
+  // Use hybrid database adapter
+  const course = await fetchCourseById(id)
 
+  if (!course) {
     return {
-      props: {
-        course,
-      },
+      notFound: true,
     }
-  } catch (error) {
-    console.error('Error fetching course:', error)
-    return {
-      props: {
-        course: null,
-      },
-    }
+  }
+
+  return {
+    props: {
+      course,
+    },
   }
 }

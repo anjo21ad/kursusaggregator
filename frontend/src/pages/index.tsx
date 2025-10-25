@@ -1,6 +1,5 @@
 import { GetServerSideProps } from 'next'
-import { prisma } from '@/lib/prisma'
-import { fetchPublishedCourses, fetchActiveCategories } from '@/lib/supabase-prisma-adapter'
+import { fetchPublishedCourses, fetchActiveCategories } from '@/lib/database-adapter'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '@/lib/supabaseClient'
@@ -294,106 +293,25 @@ export default function Home({ courses, categories }: Props) {
 
 export const getServerSideProps: GetServerSideProps = async () => {
   try {
-    // Add timeout to database queries to fail fast
-    const queryTimeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Database connection timeout')), 5000)
-    );
-
-    const [courses, categories] = await Promise.race([
-      Promise.all([
-        prisma.course.findMany({
-          where: {
-            status: 'PUBLISHED',
-            isActive: true
-          },
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            shortDesc: true,
-            priceCents: true,
-            duration: true,
-            location: true,
-            level: true,
-            category: {
-              select: {
-                name: true,
-                icon: true,
-                color: true
-              }
-            },
-            provider: {
-              select: {
-                companyName: true
-              }
-            }
-          },
-          orderBy: {
-            id: 'desc'
-          }
-        }),
-      prisma.category.findMany({
-        where: {
-          isActive: true
-        },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          icon: true,
-          color: true,
-          _count: {
-            select: {
-              courses: {
-                where: {
-                  status: 'PUBLISHED',
-                  isActive: true
-                }
-              }
-            }
-          }
-        },
-        orderBy: {
-          sortOrder: 'asc'
-        }
-      })
-      ]),
-      queryTimeout
-    ]) as [Course[], Category[]];
+    // Use hybrid database adapter (Supabase REST API for reliability)
+    const [courses, categories] = await Promise.all([
+      fetchPublishedCourses(),
+      fetchActiveCategories(),
+    ]);
 
     return {
       props: {
-        courses,
-        categories,
+        courses: courses as any,
+        categories: categories as any,
       },
-    }
+    };
   } catch (error) {
-    console.error('⚠️  PostgreSQL connection failed:', error instanceof Error ? error.message : String(error));
-    console.log('🔄 Falling back to Supabase REST API (HTTPS)...');
-
-    // Fallback: Use Supabase REST API when PostgreSQL is blocked
-    try {
-      const [courses, categories] = await Promise.all([
-        fetchPublishedCourses(),
-        fetchActiveCategories(),
-      ]);
-
-      console.log(`✅ Successfully fetched ${courses.length} courses via REST API`);
-
-      return {
-        props: {
-          courses: courses as any,
-          categories: categories as any,
-        },
-      };
-    } catch (apiError) {
-      console.error('❌ REST API also failed:', apiError);
-      return {
-        props: {
-          courses: [],
-          categories: [],
-        },
-      };
-    }
+    console.error('Error fetching homepage data:', error);
+    return {
+      props: {
+        courses: [],
+        categories: [],
+      },
+    };
   }
 }
