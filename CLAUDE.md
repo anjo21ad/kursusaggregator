@@ -1,351 +1,637 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+⚠️ **CRITICAL: Read this first before making ANY code changes**
 
-## Project Overview
+This file provides guidance to Claude Code when working with this repository.
 
-**CourseHub** is an AI-first knowledge transmission platform that generates 100% FREE Tech/AI courses from trending topics. The platform serves both individual learners and companies tracking employee learning progress.
+**Core Philosophy:** Ship → Learn → Iterate → Scale
+**Mission:** Prove AI can generate world-class learning content faster than humans
+**Timeline:** Ship Phase 1 MVP in **7 DAYS**
 
-**Mission**: From trending tech topic to certified user in **under 48 hours**.
+---
 
-**Current Implementation**: Next.js application with Pages Router, Prisma, PostgreSQL, Supabase auth. AI course generation via Claude Sonnet 4.5 and n8n automation.
+## 🎯 PROJECT OVERVIEW
 
-**Business Model**:
-- **Phase 1-3** (Months 1-6): 100% FREE AI-generated courses to build user base
-- **Phase 4** (Month 7+): Monetization via paid enterprise features, provider marketplace ($50K MRR target)
+**CourseHub** is a speed-first, AI-powered knowledge transmission platform that generates 100% FREE Tech/AI courses from trending topics.
 
-## Development Commands
+**Mission:** From trending tech topic to certified user in **under 48 hours**.
 
-All commands are run from the `frontend/` directory:
+**Current Status:** Phase 1 - MVP (Day 1-7)
 
-```bash
-# Development
-npm run dev          # Start development server on localhost:3000
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Run ESLint
+### Competitive Moat
+
+| Metric | CourseHub | Traditional Platforms |
+|--------|-----------|---------------------|
+| **Speed** | Trend → Course: 4 hours | 6-12 months |
+| **Cost** | $0 (Phase 1-3) | $50-200 per course |
+| **Freshness** | Daily updates | Quarterly updates |
+
+---
+
+## ⚡ SPEED-FIRST DEVELOPMENT RULES
+
+**Before implementing ANY feature, ask:**
+1. ✅ "Can we ship without this?"
+2. ✅ "What's the simplest version that works?"
+3. ✅ "Does this help us reach 50 beta users by Day 7?"
+
+**NEVER do this:**
+- ❌ Add features no one asked for yet
+- ❌ Optimize before we have users
+- ❌ Spend time on fancy UI when functionality is broken
+- ❌ Plan 6 months ahead when Day 1 isn't working
+
+**Instead:**
+- ✅ Ship 80% solution on Day 7 > 100% solution on Day 30
+- ✅ Features without users = waste
+- ✅ Test with 10 users before building more
+
+---
+
+## 📈 ROADMAP: 4 AGGRESSIVE PHASES
+
+### Phase 1 (7 DAYS): MVP - Proof of Concept
+**Goal:** Prove AI can generate world-class content faster than humans
+
+**Deliverables (ONLY these):**
+- ✅ Database migrated and ready (Supabase)
+- [ ] n8n scraper (HackerNews top 5 ONLY - no Reddit/GitHub yet)
+- [ ] Claude generates 1 complete text-only course
+- [ ] Admin dashboard with 1-click approval
+- [ ] Ultra-basic course player (text + quiz ONLY)
+- [ ] User signup + basic progress tracking
+- [ ] 5 AI-generated Tech/AI courses published
+
+**Success Metric:** 50 beta users, 10 complete first course
+**Ship Date:** Day 7
+
+**Day-by-day Plan:**
+```
+Day 1-2: n8n HackerNews scraper → Supabase (database ✅)
+Day 3-4: Claude course generator (text only)
+Day 4-5: Minimal course player (90s startup aesthetic)
+Day 6: Test with 10 people, fix critical bugs
+Day 7: Launch to 50 tech people on Twitter/LinkedIn
 ```
 
-### Database Commands
+### Phase 2 (14 DAYS): Core Features
+**Starts after Phase 1 ships**
 
-```bash
-npx prisma generate  # Generate Prisma client (runs automatically on postinstall)
-npx prisma migrate   # Run database migrations
-npx prisma db seed   # Seed database
-npx prisma studio    # Open Prisma Studio
+- Audio podcast generation (ElevenLabs, 10-15 min episodes)
+- Personalized course requests ("Teach me RAG systems")
+- Ultra-basic company dashboard (3 metrics only)
+- Mobile-responsive player
+
+**Success Metric:** 100 DAU, 50%+ completion rate
+
+### Phase 3 (4 WEEKS): Intelligence & Scale
+**Starts after Phase 2 ships**
+
+- Auto-publish pipeline (kill manual approval)
+- Semantic search
+- Content lifecycle management (auto-archive low performers)
+- Basic company analytics
+
+**Success Metric:** 1,000 DAU, 60%+ completion rate
+
+### Phase 4 (LATER): Advanced Features & Monetization
+Everything fancy goes here:
+- Multi-language support
+- Video generation (DID API)
+- Advanced gamification
+- A/B testing engine
+- Monetization ($50K MRR target)
+
+---
+
+## 🛠 TECH STACK (PHASE 1 ONLY)
+
+**Current Implementation:**
+
+```typescript
+Frontend (MINIMAL):
+- Next.js 15.1.8 (Pages Router - NOT App Router)
+- TypeScript (strict mode)
+- Tailwind CSS (no fancy animations)
+- shadcn/ui (button, card, input ONLY)
+
+Backend:
+- Supabase (Auth + PostgreSQL + Storage)
+- Prisma 6.8.2 (schema migrations, WRITE operations)
+- Supabase REST API (READ operations - more reliable)
+
+AI (Phase 1):
+- Anthropic Claude Sonnet 4.5 (course generation)
+- NO video, NO voice yet (Phase 2)
+
+Automation:
+- n8n (1 workflow: HackerNews scraper)
+
+Analytics:
+- PostHog basic events (signup, course_start, course_complete)
 ```
 
-### Docker Development
+**NOT in Phase 1:**
+- ❌ ElevenLabs (Phase 2)
+- ❌ Video generation (Phase 4)
+- ❌ Sentry (nice-to-have, not MVP)
+- ❌ Stripe (Phase 4 monetization)
+- ❌ Redis caching (premature optimization)
 
-```bash
-docker-compose up    # Run with PostgreSQL database
-```
+---
 
-## Architecture & Tech Stack
+## 🗄 DATABASE SCHEMA
 
-### Current Tech Stack
-- **Next.js 15.1.8** with Pages Router (not App Router)
-- **TypeScript** for type safety
-- **Hybrid Database Strategy**:
-  - **Supabase REST API** for READ queries (reliable over HTTPS, bypasses network issues)
-  - **Prisma 6.8.2** for WRITE queries (type-safety, migrations, transactions)
-- **Supabase** for authentication, user management, and storage
-- **Claude Sonnet 4.5** (Anthropic API) for AI course generation
-- **n8n** (self-hosted) for workflow automation and trend scraping
-- **ElevenLabs** for podcast/voice generation (future)
-- **D-ID or HeyGen** for video generation (cost-conditional)
-- **Stripe** for payment processing (inactive until Phase 4)
-- **Sentry** for error monitoring and performance tracking
-- **Tailwind CSS** for styling
+**Status:** ✅ Migrated and ready (see `frontend/migrations/complete-database-setup.sql`)
 
-### AI Generation Stack
-- **Daily Trend Scraping**: n8n workflows scrape HackerNews, Reddit, GitHub, arXiv
-- **Course Generation**: Claude Sonnet 4.5 generates curriculum, transcripts, quizzes, exercises
-- **Audio Generation**: ElevenLabs API for podcast narration (when cost < $2)
-- **Video Generation**: D-ID/HeyGen for talking head videos (when cost < $3)
-- **Target Economics**: <$2 per course, <4 hours generation time
-
-### Current Database Schema
-
-**Core Models:**
+### Core Models (AI-First):
 
 1. **User** - Authentication and role management
-   - Roles: `USER` (individual), `COMPANY_USER`, `COMPANY_ADMIN`, `PROVIDER`, `SUPER_ADMIN`
+   - Roles: `USER`, `COMPANY_USER`, `COMPANY_ADMIN`, `PROVIDER`, `SUPER_ADMIN`
    - Links to Company (optional) for B2B tracking
 
 2. **Course** - AI-generated course content (100% FREE in Phase 1-3)
-   - Basic fields: title, description, duration, level, category
+   - Basic: `title`, `description`, `duration`, `level`, `categoryId`
    - AI metadata: `isAIGenerated`, `aiModel`, `generationCostUsd`, `generationTimeMinutes`
    - Content: `curriculumJson`, `videoUrl`, `podcastUrl`, `transcriptUrl`
-   - A/B testing: `abTestVariant`, `engagementScore`, `actualEngagementScore`
    - Link to `trendProposalId` (source trend)
 
-3. **TrendProposal** - AI-analyzed trending topics (NEW in AI-first pivot)
-   - Source: HackerNews, Reddit, GitHub, arXiv
+3. **TrendProposal** - AI-analyzed trending topics (Phase 1+)
+   - Source: HackerNews (expands in Phase 2)
    - AI analysis: `aiCourseProposal` (JSONB with suggested course outline)
    - Workflow: `status` (PENDING → APPROVED → GENERATING → PUBLISHED)
    - Economics: `estimatedGenerationCostUsd`, `actualGenerationCostUsd`
 
-4. **CourseProgress** - Detailed user learning tracking (NEW in AI-first pivot)
-   - Section-level tracking: `currentSectionId`, `completedSections[]`
+4. **CourseProgress** - User learning tracking
+   - Section-level: `currentSectionId`, `completedSections[]`
    - Time tracking: `totalTimeMinutes`, `lastAccessedAt`, `completedAt`
    - Engagement: `quizScores` (JSONB), `exercisesCompleted` (JSONB)
-   - Unique constraint on `userId + courseId`
 
-5. **Category** - Tech/AI focused categories (6 categories)
+5. **Category** - Tech/AI categories (6 categories)
    - AI/ML, Cloud Computing, Frontend, Backend, DevOps, Data Engineering
-   - Visual: `icon`, `color` for UI
 
 6. **Company** - B2B company profiles (for employee tracking)
-   - Basic info: name, CVR, email, website
-   - Tracks employee learning via `users.companyId` relation
 
 7. **Purchase** - Purchase records (inactive until Phase 4)
-   - All courses FREE in Phase 1-3 (`priceCents = 0`)
-   - Preserved for future monetization
 
 8. **Provider** - Course providers (inactive until Phase 4)
-   - All courses AI-generated in Phase 1-3
-   - Will be used for marketplace in Phase 4
 
-**Key Schema Changes (October 2025):**
-- Added `TrendProposal` and `CourseProgress` tables
-- Added 13 AI generation fields to `Course` model
-- Changed `Course.priceCents` default to 0 (FREE)
-- Made `Course.providerId` optional (AI-generated courses have no provider)
-- Added `TrendProposalStatus` enum
+**RLS Policies:** ✅ Enabled and configured
+**Indexes:** ✅ Performance indexes on all core queries
 
-### Platform Features (AI-First Strategy)
+---
 
-**Phase 1 (Weeks 1-2): MVP - Manual AI Generation**
-- 10 AI-generated courses on trending Tech/AI topics
-- Admin approves trend proposals manually
-- Basic course listing and user registration
-- Individual + company user tracking
+## 🚀 DEVELOPMENT COMMANDS
 
-**Phase 2 (Months 1-3): Automation**
-- Daily n8n trend scraping (06:00 CET)
-- Auto-approve high-score trends
-- Real-time course progress tracking
-- Personalized learning paths
+All commands run from `frontend/` directory:
 
-**Phase 3 (Months 4-6): Intelligence**
-- Real-time custom course generation (30 min)
-- "Surprise Me" AI-curated learning paths
-- Job market intelligence (scrape job postings)
-- Community-driven trend suggestions
+```bash
+# Development
+npm run dev          # Start dev server (localhost:3000)
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
 
-**Phase 4 (Month 7+): Monetization**
-- Paid enterprise features (SSO, advanced analytics)
-- Provider marketplace (commission-based)
-- Premium AI courses ($50-200)
-- Target: $50K MRR
+# Database (Prisma)
+npx prisma generate  # Generate Prisma client
+npx prisma migrate   # Run migrations
+npx prisma db seed   # Seed database
+npx prisma studio    # Open Prisma Studio
 
-### Project Structure
+# Docker (if needed)
+docker-compose up    # Run with PostgreSQL
+
+# MCP Servers (Development Tools)
+claude mcp list      # List all configured MCP servers
+claude mcp get <name>  # Get details about specific server
+```
+
+---
+
+## 🔧 MCP SERVERS (DEVELOPMENT TOOLS)
+
+**Status:** ✅ Both servers configured and connected
+
+This project uses two MCP (Model Context Protocol) servers that are essential for development:
+
+### 1. **Supabase MCP Server**
+**Purpose:** Direct database operations and queries
+
+**Available Tools:**
+- `supabase_db_query` - Run SQL queries on Supabase database
+- `supabase_db_insert` - Insert data into tables
+- `supabase_db_update` - Update existing records
+- `supabase_db_delete` - Delete records
+- `supabase_storage_list` - List files in Supabase storage
+- `supabase_storage_upload` - Upload files to storage
+
+**Use Cases:**
+- Quick database queries during development
+- Testing database schemas and RLS policies
+- Debugging data issues
+- Seeding test data
+- Inspecting course and user data
+
+**Configuration:**
+```json
+{
+  "type": "stdio",
+  "command": "npx",
+  "args": [
+    "@supabase/mcp-server-supabase@latest",
+    "--project-ref=savhtvkgjtkiqnqytppy"
+  ],
+  "env": {
+    "SUPABASE_ACCESS_TOKEN": "..."
+  }
+}
+```
+
+### 2. **Chrome DevTools MCP Server**
+**Purpose:** Browser automation and UI testing
+
+**Available Tools:**
+- `navigate_page` - Navigate to URLs
+- `click` - Click elements on page
+- `fill` - Fill form inputs
+- `take_screenshot` - Capture screenshots
+- `take_snapshot` - Get page accessibility tree
+- `list_console_messages` - Get console logs
+- `list_network_requests` - Monitor network traffic
+- `evaluate_script` - Execute JavaScript in page
+- `performance_start_trace` - Profile performance
+
+**Use Cases:**
+- End-to-end testing of user flows
+- UI/UX debugging and screenshots
+- Performance profiling of course player
+- Testing authentication flows
+- Debugging API calls and network issues
+- Testing mobile responsiveness
+
+**Configuration:**
+```json
+{
+  "type": "stdio",
+  "command": "npx",
+  "args": ["chrome-devtools-mcp@latest"],
+  "env": {}
+}
+```
+
+### When to Use MCP Servers
+
+**Supabase MCP:**
+- ✅ Inspecting database state during development
+- ✅ Testing SQL queries before adding to code
+- ✅ Debugging RLS policies
+- ✅ Quick data fixes (e.g., promote user to SUPER_ADMIN)
+- ✅ Verifying migrations ran correctly
+
+**Chrome DevTools MCP:**
+- ✅ Testing user signup/login flow
+- ✅ Testing course player on different screen sizes
+- ✅ Capturing screenshots for documentation
+- ✅ Debugging JavaScript errors in browser
+- ✅ Profiling page load performance
+- ✅ Testing admin approval workflow
+
+### Development Workflow Example
+
+```typescript
+// Example: Test entire user flow with both MCP servers
+
+// 1. Use Supabase MCP to create test user
+supabase_db_insert({
+  table: "users",
+  data: { email: "test@example.com", role: "USER" }
+})
+
+// 2. Use Chrome DevTools MCP to test login
+navigate_page({ url: "http://localhost:3000/login" })
+fill({ uid: "email-input", value: "test@example.com" })
+fill({ uid: "password-input", value: "test123" })
+click({ uid: "login-button" })
+take_screenshot({ filePath: "test-screenshots/after-login.png" })
+
+// 3. Use Supabase MCP to verify session created
+supabase_db_query({
+  query: "SELECT * FROM auth.sessions WHERE user_id = ..."
+})
+```
+
+### Verifying MCP Server Status
+
+```bash
+# Check if both servers are connected
+claude mcp list
+
+# Expected output:
+# chrome-devtools: ✓ Connected
+# supabase-mcp: ✓ Connected
+```
+
+**If a server fails to connect:**
+1. Check `.claude.json` configuration
+2. Verify environment variables (SUPABASE_ACCESS_TOKEN for Supabase MCP)
+3. Run `claude mcp get <name>` for detailed error info
+4. Restart Claude Code if needed
+
+---
+
+## 📁 PROJECT STRUCTURE (SIMPLIFIED FOR PHASE 1)
+
 ```
 frontend/
 ├── src/
-│   ├── pages/           # Next.js pages (Pages Router)
+│   ├── pages/           # Next.js Pages Router
 │   │   ├── api/         # API routes
-│   │   ├── courses/     # Course-related pages
-│   │   ├── index.tsx    # Home page with course listing
-│   │   ├── login.tsx    # Authentication page
-│   │   └── my-courses.tsx # User's purchased courses
-│   └── instrumentation.ts # Sentry configuration
+│   │   │   └── admin/   # Admin endpoints
+│   │   ├── courses/     # Course pages
+│   │   │   └── [id].tsx # Course player
+│   │   ├── admin/       # Admin dashboard
+│   │   │   └── proposals.tsx  # 1-click approve
+│   │   ├── index.tsx    # Landing page
+│   │   └── login.tsx    # Auth
+│   └── components/
+│       ├── course/
+│       │   ├── CoursePlayer.tsx  # Text + Quiz ONLY
+│       │   └── ProgressBar.tsx
+│       └── admin/
+│           └── ProposalCard.tsx
 ├── lib/
-│   ├── database-adapter.ts  # Hybrid database adapter (READ: Supabase, WRITE: Prisma)
-│   ├── prisma.ts            # Prisma client configuration
-│   └── supabaseClient.ts    # Supabase client setup
+│   ├── ai/
+│   │   ├── course-generator.ts   # Core AI logic
+│   │   └── anthropic-client.ts
+│   ├── supabase/
+│   │   ├── client.ts
+│   │   └── server.ts
+│   └── database-adapter.ts  # Hybrid DB strategy
 ├── prisma/
 │   ├── schema.prisma    # Database schema
-│   └── seed.js          # Database seed data
-└── public/              # Static assets
+│   └── seed.js          # Seed data
+└── migrations/
+    └── complete-database-setup.sql
 ```
 
-## Key Implementation Details
+**Removed from Phase 1 (to be added later):**
+- elevenlabs.ts (Phase 2)
+- did-api.ts (Phase 4)
+- embeddings.ts (Phase 3)
+- Fancy company dashboard (Phase 2)
+- AI chatbot (Phase 3)
 
-### Hybrid Database Strategy 🆕
+---
 
-**Why Hybrid?**
-The application uses a hybrid database access pattern to handle unstable network conditions while maintaining Prisma's benefits for long-term development.
+## 🔑 ENVIRONMENT VARIABLES
 
-**Architecture:**
-```
-READ Queries:  User → Next.js → Supabase REST API (HTTPS/443) → PostgreSQL
-WRITE Queries: User → Next.js → Prisma → PostgreSQL (Session pooler/5432)
-```
-
-**Implementation: [lib/database-adapter.ts](lib/database-adapter.ts)**
-
-**READ Operations (Supabase REST API):**
-- `fetchPublishedCourses()` - Homepage course listing
-- `fetchCourseById(id)` - Course detail pages
-- `fetchUserCourses(userId)` - User's purchased courses
-- `fetchActiveCategories()` - Category navigation
-- `fetchAdminStats()` - Admin dashboard statistics
-- `checkCourseAccess(userId, courseId)` - Access verification
-
-**WRITE Operations (Prisma):**
-- `createPurchase(data)` - Course purchases
-- `updateCourseStatus(id, status)` - Admin course moderation
-- `updateProviderStatus(id, status)` - Admin provider moderation
-- All other CREATE, UPDATE, DELETE operations
-
-**Benefits:**
-- ✅ Reliable READ operations even with unstable network (HTTPS bypasses firewall)
-- ✅ Type-safe WRITE operations with Prisma
-- ✅ Maintains schema migrations with Prisma
-- ✅ Aligns with MVP-first approach
-- ✅ Production-ready for Vercel deployment
-
-**Date Handling:**
-All date fields are returned as ISO 8601 strings for Next.js JSON serialization compatibility.
-
-### Authentication Flow
-- Uses Supabase for user authentication
-- User sessions are managed client-side
-- API routes validate authentication via Bearer tokens
-- User IDs from Supabase are stored as strings in the User model
-
-### Payment Integration
-- Stripe Checkout integration (INACTIVE until Phase 4)
-- All courses are FREE in Phase 1-3 (`priceCents = 0`)
-- Infrastructure preserved for Phase 4 monetization
-- Prices will be stored in cents (Danish Kroner) when activated
-
-### Environment Variables Required
+**Phase 1 Required:**
 ```bash
 # Database
-DATABASE_URL="postgresql://..."
+DATABASE_URL="postgresql://..."  # Supabase session pooler
 
-# Supabase (Auth + Storage)
+# Supabase (Auth + Database)
 NEXT_PUBLIC_SUPABASE_URL="..."
 NEXT_PUBLIC_SUPABASE_ANON_KEY="..."
 SUPABASE_SERVICE_ROLE_KEY="..."
 
-# AI Generation (Phase 1+)
-ANTHROPIC_API_KEY="..."  # Claude Sonnet 4.5 for course generation
-# ELEVENLABS_API_KEY="..." # Future: Podcast generation
-# DID_API_KEY="..." # Future: Video generation
-
-# Payments (Inactive until Phase 4)
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="..."
-STRIPE_SECRET_KEY="..."
-
-# Monitoring
-SENTRY_DSN="..."
-
-# Caching (Optional)
-UPSTASH_REDIS_REST_URL="..."
-UPSTASH_REDIS_REST_TOKEN="..."
-
-# n8n (Phase 2+)
-# N8N_WEBHOOK_URL="..." # For trend scraping workflows
+# AI Generation
+ANTHROPIC_API_KEY="..."  # Claude Sonnet 4.5
 ```
 
-### API Endpoints
+**Phase 2+ (Not needed yet):**
+```bash
+# ELEVENLABS_API_KEY="..."  # Phase 2: Audio
+# STRIPE_SECRET_KEY="..."   # Phase 4: Monetization
+# SENTRY_DSN="..."          # Optional: Error tracking
+```
+
+---
+
+## 🎯 API ENDPOINTS (PHASE 1 MVP)
 
 **Course Discovery:**
-- `GET /api/courses` - List all AI-generated courses (with filters)
+- `GET /api/courses` - List all published courses
 - `GET /api/courses/[id]` - Get single course details
 - `GET /api/categories` - List Tech/AI categories
 
 **User Learning:**
-- `GET /api/my-courses` - Fetch user's enrolled courses
-- `GET /api/course-progress/[courseId]` - Get progress for specific course
-- `POST /api/course-progress/[courseId]` - Update progress (section completion, quiz scores)
+- `GET /api/my-courses` - User's enrolled courses
+- `POST /api/course-progress/[courseId]` - Update progress
 
 **Admin (SUPER_ADMIN only):**
-- `GET /api/admin/trend-proposals` - List pending trend proposals
-- `POST /api/admin/trend-proposals/[id]/approve` - Approve proposal & trigger generation
+- `GET /api/admin/trend-proposals` - List pending proposals
+- `POST /api/admin/trend-proposals/[id]/approve` - Approve & generate
 - `POST /api/admin/trend-proposals/[id]/reject` - Reject proposal
-- `GET /api/admin/courses` - Manage AI-generated courses
-- `GET /api/admin/users` - User management
-- `GET /api/admin/companies` - Company management
 
-**AI Generation (Phase 2+):**
-- `POST /api/generate-course` - Trigger AI course generation from trend
-- `POST /api/generate-custom-course` - Real-time custom course (30 min)
+**AI Generation:**
+- `POST /api/generate-course` - Trigger course generation from trend
 
-**Payments (Inactive until Phase 4):**
-- `GET/POST /api/checkout` - Create Stripe checkout session (disabled)
-- `POST /api/purchase` - Register purchase after payment (disabled)
+---
 
-## Development Guidelines
+## 🤖 AI CONTENT GENERATION PIPELINE (PHASE 1)
 
-### Code Style
-- Uses ESLint with Next.js TypeScript configuration
-- Tailwind CSS for styling
-- Danish language used in UI text and comments
-- TypeScript strict mode enabled
+```
+┌─────────────────────────────────────────────┐
+│  TREND DISCOVERY (Daily 06:00 CET)         │
+│  n8n scrapes HackerNews top 5 stories      │
+│  → AI analyzes trends                      │
+│  → Generates course proposals              │
+└─────────────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────────────┐
+│  MANUAL APPROVAL (Admin Dashboard)         │
+│  Admin 1-click approval (<30 seconds)      │
+└─────────────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────────────┐
+│  COURSE GENERATION (2-4 hours)             │
+│  1. Curriculum (5 min)                     │
+│  2. Text content (20 min)                  │
+│  3. Quiz generation (10 min)               │
+│  4. DONE (no video/podcast in Phase 1)     │
+└─────────────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────────────┐
+│  PUBLISH & TRACK                           │
+│  - Publish to platform                     │
+│  - Track engagement metrics                │
+└─────────────────────────────────────────────┘
+```
 
-### Database Development
-- Use Prisma migrations for schema changes
-- **Migration in Progress**: AI-first pivot with new `TrendProposal` and `CourseProgress` tables
-- See [`frontend/MIGRATION-README.md`](frontend/MIGRATION-README.md) for migration instructions
-- Database connection pooling configured for production
-- Production uses Supabase PostgreSQL with SSL
+**Target Economics (Phase 1):** <$1 per course (text only), <2 hours generation time
 
-### Error Monitoring
-- Sentry configured for both client and server
-- Automatic error tracking and performance monitoring
-- Source maps uploaded for better error reporting
+---
 
-## Business Model & Strategy
+## 🎨 DESIGN SYSTEM (MINIMAL FOR PHASE 1)
 
-**AI-First Growth Strategy:**
+**Color Palette:**
+- Primary (orange): `#FF6A3D`
+- Secondary (purple): `#7E6BF1`
+- Background dark: `#0F0F1A`
+- Card: `#1C1C2E`
+- Text light: `#F5F5F7`
 
-**Phase 1-3 (Months 1-6): FREE Content to Build User Base**
-- 100% FREE AI-generated Tech/AI courses
-- Target: 1,000 DAU (Daily Active Users) by Month 3
-- Focus: Quality content + viral sharing
-- Economics: <$2 per course generation cost
+**Typography:**
+- Font: Inter (Google Fonts)
+- Headers: Bold (700)
+- Body: Normal (400)
 
-**Phase 4 (Month 7+): Monetization**
-- **Enterprise Features**: Company analytics, SSO, team management ($500/month per company)
-- **Provider Marketplace**: Third-party providers can sell courses (10-20% commission)
-- **Premium AI Courses**: Advanced/niche topics ($50-200 per course)
-- **Target**: $50K MRR by Month 12
+**Components (shadcn/ui ONLY):**
+- Button (primary/secondary)
+- Card (course cards)
+- Input (forms)
+- NO fancy animations in Phase 1
 
-**Key Metrics:**
-- **Knowledge Transmission Speed**: Trend discovery → User completion (<48 hours)
-- **Generation Efficiency**: Cost per course (<$2), Time per course (<4 hours)
-- **Engagement**: Course completion rate (>60%), Quiz pass rate (>70%)
-- **Growth**: Weekly Active Users, Course completion velocity
+See [docs/WEB-DESIGN-STYLEGUIDE.md](docs/WEB-DESIGN-STYLEGUIDE.md) for full details.
 
-**Competitive Moat:**
-- Fastest content creation (4 hours vs 6-12 months traditional)
-- 100% FREE vs $50-200 competitors
-- Always-fresh content (daily trend tracking)
-- Real-time personalization (custom courses in 30 min)
+---
 
-## Important Notes
+## 📊 SUCCESS METRICS (PHASE 1)
 
-- This project uses **Pages Router**, not App Router
-- The main application logic is in the `frontend/` directory
-- Danish language is used throughout the UI
-- All monetary values are stored in cents (øre) when activated in Phase 4
-- Authentication state management happens client-side with Supabase
-- **All courses are FREE** in Phase 1-3 (`priceCents = 0`)
-- **AI-generated courses** have no `providerId` (NULL)
-- **Strategic Focus**: "Elon Musk mode" - build fastest learning platform on Earth
-- **Architecture Pattern**: Start as monolith with AI-first features, evolve based on metrics
+**Ship on Day 7 with:**
+- [ ] 5 courses generated and quality checked
+- [ ] 50 beta users signed up
+- [ ] 10 users complete first course
+- [ ] Sign-up flow works (2 min max)
+- [ ] Course player works on mobile + desktop
+- [ ] Progress tracking saves correctly
+- [ ] Admin can approve proposals in <30 seconds
+- [ ] Zero TypeScript errors
 
-## Documentation
+**Everything else comes later.**
 
-Additional documentation can be found in the `/docs` and `/frontend` directories:
+---
 
-**Core Documentation:**
-- [PROJECT.md](docs/PROJECT.md) - **Complete AI-first architecture and 4-phase roadmap** (2,160 lines)
-- [MIGRATION-README.md](frontend/MIGRATION-README.md) - Database migration guide for AI-first pivot
-- [Web Design Style Guide](docs/WEB-DESIGN-STYLEGUIDE.md) - Complete design system documentation
+## 🚨 DEVELOPMENT RULES
 
-**Legacy Documentation (Pre-AI Pivot):**
-- [Migration Guide](docs/MIGRATION-GUIDE.md) - Original database migration strategies
-- [Provider Workflow Test](docs/PROVIDER-WORKFLOW-TEST.md) - Provider feature testing (inactive until Phase 4)
-- [Style Guide](docs/STYLEGUIDE.md) - UI/UX and coding standards
+**NEVER do this:**
+- ❌ Build features no one asked for
+- ❌ Add video when text works fine
+- ❌ Optimize before having users
+- ❌ Plan 6 months ahead when Day 1 isn't working
+- ❌ Store API keys in code
+- ❌ Skip RLS policies on new tables
+- ❌ Use `any` type in TypeScript
+- ❌ Deploy without testing locally
+- ❌ Generate courses without cost tracking
 
-**Database Schema:**
-- [Prisma Schema](frontend/prisma/schema.prisma) - Complete database schema with AI generation tables
-- [Seed Data](frontend/prisma/seed.js) - AI-first seed data with 4 sample courses
-- [Migration SQL](frontend/migrations/ai-features-migration.sql) - SQL migration for AI features
+**ALWAYS do this:**
+- ✅ Ship 80% solution on Day 7 > 100% solution on Day 30
+- ✅ Test with 10 real users before building more
+- ✅ Ask "Can we ship without this feature?"
+- ✅ Track generation costs for every course
+- ✅ Use TypeScript strict mode
+- ✅ Enable RLS policies on all tables
+- ✅ Test on mobile before shipping
+
+---
+
+## 📝 CODING CONVENTIONS
+
+**Language:**
+- UI text: Danish (e.g., "Kom i gang", "Mine kurser")
+- Code comments: English
+- Variable names: English
+
+**TypeScript:**
+- Strict mode enabled
+- No `any` types (use `unknown` if needed)
+- Prefer interfaces over types
+
+**Database:**
+- Use Prisma for WRITE operations (type-safety, migrations)
+- Use Supabase REST API for READ operations (reliability)
+- See [lib/database-adapter.ts](lib/database-adapter.ts)
+
+**API Routes:**
+- Validate auth with Supabase Bearer tokens
+- Return errors as `{ error: string }`
+- Use 200/400/401/500 status codes
+
+---
+
+## 📚 DOCUMENTATION HIERARCHY
+
+1. **PROJECT.md** (Strategy) - Read this FIRST for overall strategy
+2. **CLAUDE.md** (This file) - Implementation guidance for Claude Code
+3. **WEB-DESIGN-STYLEGUIDE.md** - UI/UX design system
+4. **MIGRATION-README.md** - Database migration guide (reference only)
+
+**In case of conflict:** PROJECT.md > CLAUDE.md > other docs
+
+---
+
+## ⚡ CURRENT PRIORITIES (WEEK 1)
+
+**Day 1-2:**
+- [x] Supabase project setup ✅
+- [x] Database schema migrated ✅
+- [ ] n8n HackerNews scraper (top 5 daily)
+
+**Day 3-4:**
+- [ ] Claude course generator (text only)
+- [ ] Generate 3 test courses
+- [ ] Admin approval UI (1-click)
+
+**Day 5-6:**
+- [ ] Ultra-basic course player (text + quiz)
+- [ ] User auth + progress tracking
+- [ ] Test with 5 people
+
+**Day 7:**
+- [ ] Fix critical bugs
+- [ ] Launch to 50 people on LinkedIn/Twitter
+- [ ] Track: signups, course starts, completions
+
+---
+
+## 🎓 KEY IMPLEMENTATION NOTES
+
+### Hybrid Database Strategy
+
+**Why?** Supabase REST API (HTTPS/443) is more reliable for READ operations than direct PostgreSQL connection on unstable networks.
+
+**Architecture:**
+```
+READ:  User → Next.js → Supabase REST API → PostgreSQL
+WRITE: User → Next.js → Prisma → PostgreSQL
+```
+
+**Implementation:** See [lib/database-adapter.ts](lib/database-adapter.ts)
+
+### Authentication Flow
+
+- Supabase handles user authentication
+- Sessions managed client-side
+- API routes validate Bearer tokens
+- User IDs stored as strings in User model
+
+### Payment Integration
+
+- Stripe infrastructure preserved but INACTIVE until Phase 4
+- All courses FREE in Phase 1-3 (`priceCents = 0`)
+- Prices stored in cents (Danish Kroner) when activated
+
+---
+
+## 🚢 SHIPPING CHECKLIST (PHASE 1)
+
+**Before launching on Day 7:**
+- [ ] 5 courses generated and quality checked
+- [ ] Sign-up flow works (2 min max)
+- [ ] Course player works on mobile + desktop
+- [ ] Progress tracking saves correctly
+- [ ] Admin can approve proposals in <30 seconds
+- [ ] Zero TypeScript errors
+- [ ] Basic RLS policies (user can only see their data)
+- [ ] Test with 10 people, fix critical bugs
+- [ ] Landing page explains value prop clearly
+
+**Everything else comes in Phase 2+.**
+
+---
+
+**Remember:** Ship → Learn → Iterate → Scale
+**Target:** 50 beta users by Day 7
+**Mantra:** "Can we ship without this feature?"
