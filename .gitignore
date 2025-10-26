@@ -146,7 +146,14 @@ nul
 frontend/scripts/check-*.js
 frontend/scripts/run-migration.js
 frontend/scripts/test-*.js
+frontend/scripts/create-test-*.js
 frontend/prisma/migrations/*.sql
+
+# Temporary feedback and one-time documentation
+docs/FEEDBACK_*.md
+**/quick-*.js
+**/test-*.html
+**/test-*.css
 
 # Root package-lock.json (frontend has its own)
 /package-lock.json
