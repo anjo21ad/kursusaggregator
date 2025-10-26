@@ -123,6 +123,13 @@ model Course {
   podcastUrl                                                 String?
   transcriptUrl                                              String?
 
+  // Content Lifecycle Management (Phase 3)
+  lastViewedAt                                               DateTime?       // Track engagement for archival
+  archivedAt                                                 DateTime?       // When archived
+  archivalReason                                             String?         // Why archived (tech deprecation, low engagement, etc.)
+  isEvergreen                                                Boolean         @default(false) // Never archive (fundamentals, high-performers)
+  supersededByCourseId                                       Int?            // Points to replacement course
+
   ai_interactions_ai_interactions_booked_course_idTocourses  AIInteraction[] @relation("ai_interactions_booked_course_idTocourses")
   ai_interactions_ai_interactions_clicked_course_idTocourses AIInteraction[] @relation("ai_interactions_clicked_course_idTocourses")
   category                                                   Category        @relation(fields: [categoryId], references: [id])

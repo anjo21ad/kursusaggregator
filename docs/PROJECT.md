@@ -123,6 +123,183 @@ Fra trending tech topic til certificeret bruger på **under 48 timer**.
   - "Teach me how to optimize LLM costs"
   - Finds relevant courses + generates custom if gap
 
+- 🗄️ **Content Lifecycle Management**
+  **Problem:** At 50+ courses, content freshness becomes critical. Tech moves fast - a React 18 course becomes outdated when React 19 ships. Low-quality content dilutes the catalog.
+
+  **Solution:** Automated content health monitoring and lifecycle management.
+
+  **Activation Trigger:** When course catalog reaches 50+ published courses
+
+  **Auto-Archive Conditions:**
+  ```typescript
+  interface ArchiveConditions {
+    // Engagement metrics (tracked over 90 days)
+    completion_rate: '<30%',           // Industry avg is 15%, ours should be >60%
+    view_count: '<50 views',           // Not reaching users
+    start_rate: '<5%',                 // Users see it but don't start
+    avg_rating: '<3.5/5',              // Poor quality indicator
+
+    // Time-based
+    no_engagement_days: '>180',        // 6 months without activity
+    last_viewed_at: 'older than 1 year',
+
+    // Technical deprecation
+    tech_deprecation: true,            // Framework/lib is EOL
+    superseded_by: 'course_id',        // Better course on same topic exists
+
+    // A/B test loser
+    ab_test_loser: true,               // Lost A/B test, keep winner only
+  }
+  ```
+
+  **Evergreen Protection:**
+  Kurser markeret som "fundamentals" arkiveres ALDRIG:
+  - Programming language basics (Python, JavaScript, SQL)
+  - Core CS concepts (Algorithms, Data Structures)
+  - Universal tools (Git, Docker, Linux)
+  - High-performers (>75% completion, >4.2 rating)
+
+  **Database Schema Updates:**
+  ```sql
+  ALTER TABLE courses
+    ADD COLUMN last_viewed_at TIMESTAMPTZ,
+    ADD COLUMN archived_at TIMESTAMPTZ,
+    ADD COLUMN archival_reason TEXT,
+    ADD COLUMN is_evergreen BOOLEAN DEFAULT false,
+    ADD COLUMN superseded_by_course_id UUID REFERENCES courses(id);
+
+  CREATE INDEX idx_courses_last_viewed ON courses(last_viewed_at DESC)
+    WHERE status = 'published' AND archived_at IS NULL;
+  ```
+
+  **User Experience:**
+
+  *Archived Content:*
+  - **Search/Browse:** Hidden from results (reduces choice paralysis)
+  - **Direct Links:** Shows banner: "⚠️ This course is archived (outdated tech/low quality). Try our updated course: [link]"
+  - **User Progress:** Preserved but read-only. Users can export completion certificate.
+
+  *Transparency:*
+  ```markdown
+  🗂️ Archived Course
+
+  This course was archived on Jan 15, 2026 because:
+  - Framework deprecated (React 18 → React 19 released)
+  - Superseded by: "React 19 Server Components Masterclass"
+
+  Your progress is saved. Want the completion certificate? [Download PDF]
+  ```
+
+  **Automation: n8n Weekly Course Health Check**
+  ```typescript
+  // n8n workflow: "course-health-monitor"
+  // Runs: Every Sunday 03:00 CET
+
+  const workflow = {
+    name: "Course Health Monitor",
+    schedule: "0 3 * * 0", // Weekly Sunday 3am
+
+    steps: [
+      {
+        name: "Fetch All Published Courses",
+        query: `
+          SELECT * FROM courses
+          WHERE status = 'published'
+          AND archived_at IS NULL
+          AND is_evergreen = false
+          ORDER BY published_at ASC
+        `
+      },
+      {
+        name: "Calculate Health Metrics",
+        action: async (courses) => {
+          for (const course of courses) {
+            const metrics = await analyzeMetrics(course.id, {
+              window_days: 90 // Last 90 days
+            });
+
+            const health_score = calculateHealthScore(metrics);
+
+            // Archive if health score < 30
+            if (health_score < 30 && !course.is_evergreen) {
+              await archiveCourse(course.id, {
+                reason: determineArchivalReason(metrics),
+                notify_admin: true
+              });
+            }
+          }
+        }
+      },
+      {
+        name: "Check Tech Deprecation",
+        action: async () => {
+          // Query external APIs for EOL status
+          const deprecatedFrameworks = await checkFrameworkEOL([
+            'react', 'vue', 'angular', 'node', 'python', 'go'
+          ]);
+
+          // Archive courses using deprecated tech
+          for (const fw of deprecatedFrameworks) {
+            await archiveCoursesWithTag(fw.name, {
+              reason: `${fw.name} ${fw.version} reached end-of-life`,
+              suggest_alternative: true
+            });
+          }
+        }
+      },
+      {
+        name: "Notify Admin",
+        action: async (archived_courses) => {
+          if (archived_courses.length > 0) {
+            await slack.send({
+              channel: '#content-health',
+              text: `🗄️ Weekly Archive Report\n\nArchived ${archived_courses.length} courses:\n${archived_courses.map(c => `• ${c.title} (${c.archival_reason})`).join('\n')}\n\nReview: /admin/archived-courses`
+            });
+          }
+        }
+      }
+    ]
+  };
+  ```
+
+  **Admin Dashboard:**
+  ```
+  /admin/archived-courses
+
+  Filters:
+  - Archived in last 30 days
+  - Archived reason (low engagement, tech deprecation, superseded)
+  - Original publish date
+
+  Actions per course:
+  - View archival metrics (why was it archived?)
+  - Restore (if archived by mistake)
+  - Permanently delete (free up storage)
+  - Generate replacement course (AI creates updated version)
+  ```
+
+  **Cost & Quality Benefits:**
+
+  | Benefit | Impact |
+  |---------|--------|
+  | **Storage Costs** | -40% (archive old videos/podcasts to cold storage) |
+  | **User Experience** | Higher completion rates (less overwhelming catalog) |
+  | **Platform Quality** | Average course rating increases (remove low performers) |
+  | **SEO** | Better search rankings (fresh content signals) |
+  | **Choice Paralysis** | -60% decision time (curated high-quality catalog) |
+
+  **Elon Musk Insight:**
+  > *"Traditional platforms hoard content like dragon hoards gold - more is 'better'. Wrong. Dead content is tech debt. Your competitive advantage is VELOCITY: generate fresh courses faster than competitors can say 'course outline'. Archive aggressively, generate constantly. Quality > Quantity, but Speed > Everything."*
+
+  **Why Design This Early?**
+  - Database schema decisions impact Phase 1 (add fields now = no migration later)
+  - Sets quality bar: "We only show what's worth your time"
+  - Differentiator: Competitors keep dead content forever
+  - Enables aggressive generation: Don't fear generating too much
+
+  **Implementation Note:**
+  Design tables now, implement automation in Phase 3 when catalog size justifies it.
+
 **Success Metric:** 10,000 DAU, 500 companies tracking employees
 **Timeline:** Ship i 4 måneder
 
