@@ -245,10 +245,10 @@ export default function Home({ courses, categories }: Props) {
                     <div className="pt-4 border-t border-dark-border flex justify-between items-center">
                       <div>
                         <div className="text-2xl font-bold text-primary">
-                          {(course.priceCents / 100).toFixed(0)} kr
+                          {course.priceCents === 0 ? 'GRATIS' : `${(course.priceCents / 100).toFixed(0)} kr`}
                         </div>
                         <div className="text-xs text-dark-text-secondary mt-1">
-                          {course.provider.companyName}
+                          {course.isAIGenerated ? '🤖 AI-genereret' : course.provider?.companyName || 'Ukendt udbyder'}
                         </div>
                       </div>
                       <Link

@@ -1,6 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { requireAdmin } from '@/middleware/adminAuth'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@supabase/supabase-js'
+
+// Use service_role key for admin operations (bypasses RLS)
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Verify admin access
@@ -10,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     try {
       // Fetch all users with company and provider relations
-      const { data: users, error } = await supabase
+      const { data: users, error } = await supabaseAdmin
         .from('users')
         .select(`
           id,
@@ -24,9 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           companyId,
           providerId,
           company:companies(id, name),
-          provider:providers(id, companyName),
-          purchases:purchases(count),
-          leads:leads(count)
+          provider:providers(id, companyName)
         `)
         .order('createdAt', { ascending: false })
 
@@ -35,23 +39,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Kunne ikke hente brugere' })
       }
 
-      // Transform to include counts
-      const usersWithCounts = (users || []).map((user: any) => ({
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        isActive: user.isActive,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        companyId: user.companyId,
-        providerId: user.providerId,
-        company: user.company,
-        provider: user.provider,
-        purchaseCount: user.purchases?.[0]?.count || 0,
-        leadCount: user.leads?.[0]?.count || 0,
-      }))
+      // Count purchases and leads for each user
+      const usersWithCounts = await Promise.all(
+        (users || []).map(async (user: any) => {
+          const { count: purchaseCount } = await supabaseAdmin
+            .from('purchases')
+            .select('*', { count: 'exact', head: true })
+            .eq('userId', user.id)
+
+          const { count: leadCount } = await supabaseAdmin
+            .from('leads')
+            .select('*', { count: 'exact', head: true })
+            .eq('userId', user.id)
+
+          return {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role,
+            isActive: user.isActive,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+            companyId: user.companyId,
+            providerId: user.providerId,
+            company: user.company,
+            provider: user.provider,
+            purchaseCount: purchaseCount || 0,
+            leadCount: leadCount || 0,
+          }
+        })
+      )
 
       return res.status(200).json({ users: usersWithCounts })
     } catch (error) {

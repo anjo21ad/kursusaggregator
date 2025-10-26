@@ -2331,6 +2331,6 @@ Spørg hvis noget er uklart. Det er bedre at spørge end at bygge forkert.
 
 ---
 
-*Last updated: 2025-01-15*
+*Last updated: 2025-10-26*
 *Version: 2.0 (Radical Pivot)*
 *Next review: After Phase 1 completion*
