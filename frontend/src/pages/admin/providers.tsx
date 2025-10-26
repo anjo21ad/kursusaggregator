@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '@/lib/supabaseClient'
+import Navigation from '@/components/Navigation'
+import Footer from '@/components/Footer'
 
 interface Provider {
   id: number
@@ -130,16 +132,16 @@ export default function AdminProvidersPage() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      PENDING: 'bg-yellow-100 text-yellow-800',
-      APPROVED: 'bg-green-100 text-green-800', 
-      SUSPENDED: 'bg-red-100 text-red-800',
-      REJECTED: 'bg-gray-100 text-gray-800'
+      PENDING: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30',
+      APPROVED: 'bg-green-500/20 text-green-400 border border-green-500/30',
+      SUSPENDED: 'bg-red-500/20 text-red-400 border border-red-500/30',
+      REJECTED: 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
     }
 
     const labels = {
       PENDING: 'Afventer',
       APPROVED: 'Godkendt',
-      SUSPENDED: 'Suspenderet', 
+      SUSPENDED: 'Suspenderet',
       REJECTED: 'Afvist'
     }
 
@@ -152,10 +154,10 @@ export default function AdminProvidersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0F0F1A] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Indlæser providers...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF6A3D] mx-auto"></div>
+          <p className="mt-4 text-white/60">Indlæser providers...</p>
         </div>
       </div>
     )
@@ -163,12 +165,12 @@ export default function AdminProvidersPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0F0F1A] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600">Fejl: {error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-4 bg-indigo-600 text-white px-4 py-2 rounded"
+          <p className="text-red-400">Fejl: {error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 bg-[#FF6A3D] text-white px-4 py-2 rounded-lg hover:bg-[#FF8A3D] transition-colors"
           >
             Prøv igen
           </button>
@@ -178,83 +180,87 @@ export default function AdminProvidersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="md:flex md:items-center md:justify-between mb-8">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+    <div className="min-h-screen flex flex-col bg-[#0F0F1A]">
+      <Navigation />
+
+      <main className="flex-1 container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="border-b border-[#FF6A3D]/30 pb-4 mb-6">
+            <h1 className="text-3xl font-bold text-white mb-2">
               Provider Administration
             </h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="text-white/60">
               Administrer kursusudbydere og deres godkendelser
             </p>
           </div>
-          <div className="mt-4 flex md:mt-0 md:ml-4">
+
+          <div className="flex justify-between items-center">
             <button
-              onClick={() => router.push('/admin')}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              onClick={() => router.push('/admin/dashboard')}
+              className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
             >
-              ← Tilbage til Admin
+              ← Tilbage til Dashboard
             </button>
           </div>
         </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-4 mb-8">
-          {[
-            { label: 'Total', count: providers.length, color: 'bg-blue-500' },
-            { label: 'Afventer', count: providers.filter(p => p.status === 'PENDING').length, color: 'bg-yellow-500' },
-            { label: 'Godkendt', count: providers.filter(p => p.status === 'APPROVED').length, color: 'bg-green-500' },
-            { label: 'Afvist', count: providers.filter(p => p.status === 'REJECTED').length, color: 'bg-red-500' }
-          ].map((stat) => (
-            <div key={stat.label} className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className={`w-8 h-8 rounded-full ${stat.color}`}></div>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">{stat.label}</dt>
-                      <dd className="text-lg font-medium text-gray-900">{stat.count}</dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-6">
+            <div className="text-blue-400 text-sm font-medium mb-1">Total</div>
+            <div className="text-white text-3xl font-bold">{providers.length}</div>
+          </div>
+          <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border border-yellow-500/30 rounded-xl p-6">
+            <div className="text-yellow-400 text-sm font-medium mb-1">Afventer</div>
+            <div className="text-white text-3xl font-bold">
+              {providers.filter(p => p.status === 'PENDING').length}
             </div>
-          ))}
+          </div>
+          <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-6">
+            <div className="text-green-400 text-sm font-medium mb-1">Godkendt</div>
+            <div className="text-white text-3xl font-bold">
+              {providers.filter(p => p.status === 'APPROVED').length}
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-red-500/20 to-red-600/20 border border-red-500/30 rounded-xl p-6">
+            <div className="text-red-400 text-sm font-medium mb-1">Afvist</div>
+            <div className="text-white text-3xl font-bold">
+              {providers.filter(p => p.status === 'REJECTED').length}
+            </div>
+          </div>
         </div>
 
-        {/* Providers Table */}
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <div className="px-4 py-5 sm:px-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
+        {/* Providers List */}
+        <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-white/10">
+            <h3 className="text-lg font-semibold text-white">
               Alle Kursusudbydere ({providers.length})
             </h3>
           </div>
-          
+
           {providers.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-500">Ingen providers fundet</p>
+              <p className="text-white/40">Ingen providers fundet</p>
             </div>
           ) : (
-            <ul className="divide-y divide-gray-200">
+            <div className="divide-y divide-white/5">
               {providers.map((provider) => (
-                <li key={provider.id} className="px-4 py-6 sm:px-6">
+                <div key={provider.id} className="px-6 py-6 hover:bg-white/5 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h4 className="text-lg font-medium text-gray-900">
+                          <h4 className="text-lg font-medium text-white">
                             {provider.companyName}
                           </h4>
-                          <p className="text-sm text-gray-600">{provider.contactEmail}</p>
+                          <p className="text-sm text-white/60">{provider.contactEmail}</p>
                           {provider.website && (
-                            <a 
-                              href={provider.website} 
-                              target="_blank" 
+                            <a
+                              href={provider.website}
+                              target="_blank"
                               rel="noopener noreferrer"
-                              className="text-sm text-indigo-600 hover:text-indigo-500"
+                              className="text-sm text-[#FF6A3D] hover:text-[#FF8A3D] transition-colors"
                             >
                               {provider.website}
                             </a>
@@ -264,30 +270,30 @@ export default function AdminProvidersPage() {
                           {getStatusBadge(provider.status)}
                         </div>
                       </div>
-                      
-                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-gray-600">
+
+                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-white/60">
                         <div>
-                          <span className="font-medium">By:</span> {provider.city || 'Ikke angivet'}
+                          <span className="font-medium text-white/80">By:</span> {provider.city || 'Ikke angivet'}
                         </div>
                         <div>
-                          <span className="font-medium">CVR:</span> {provider.cvr || 'Ikke angivet'}
+                          <span className="font-medium text-white/80">CVR:</span> {provider.cvr || 'Ikke angivet'}
                         </div>
                         <div>
-                          <span className="font-medium">Registreret:</span>{' '}
+                          <span className="font-medium text-white/80">Registreret:</span>{' '}
                           {new Date(provider.createdAt).toLocaleDateString('da-DK')}
                         </div>
                       </div>
 
                       {provider.description && (
-                        <p className="mt-2 text-sm text-gray-700">{provider.description}</p>
+                        <p className="mt-2 text-sm text-white/70">{provider.description}</p>
                       )}
 
                       {provider.users.length > 0 && (
                         <div className="mt-2">
-                          <span className="text-sm font-medium text-gray-700">Administratorer:</span>
+                          <span className="text-sm font-medium text-white/80">Administratorer:</span>
                           <div className="mt-1 flex flex-wrap gap-2">
                             {provider.users.map(user => (
-                              <span key={user.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <span key={user.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white/80 border border-white/20">
                                 {user.firstName} {user.lastName} ({user.email})
                               </span>
                             ))}
@@ -303,18 +309,18 @@ export default function AdminProvidersPage() {
                       <button
                         onClick={() => handleStatusChange(provider.id, 'APPROVED')}
                         disabled={actionLoading === provider.id}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                        className="px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50"
                       >
                         {actionLoading === provider.id ? 'Arbejder...' : '✅ Godkend'}
                       </button>
-                      
+
                       <button
                         onClick={() => {
                           const reason = prompt('Angiv årsag til afvisning (valgfrit):')
                           handleStatusChange(provider.id, 'REJECTED', reason || undefined)
                         }}
                         disabled={actionLoading === provider.id}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                        className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50"
                       >
                         {actionLoading === provider.id ? 'Arbejder...' : '❌ Afvis'}
                       </button>
@@ -329,7 +335,7 @@ export default function AdminProvidersPage() {
                           if (reason) handleStatusChange(provider.id, 'SUSPENDED', reason)
                         }}
                         disabled={actionLoading === provider.id}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50"
+                        className="px-4 py-2 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-lg hover:bg-orange-500/30 transition-colors disabled:opacity-50"
                       >
                         ⏸️ Suspender
                       </button>
@@ -341,18 +347,20 @@ export default function AdminProvidersPage() {
                       <button
                         onClick={() => handleStatusChange(provider.id, 'APPROVED')}
                         disabled={actionLoading === provider.id}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                        className="px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50"
                       >
                         ✅ Genaktiver
                       </button>
                     </div>
                   )}
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
-      </div>
+      </main>
+
+      <Footer />
     </div>
   )
 }
