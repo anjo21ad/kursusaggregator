@@ -1,0 +1,305 @@
+{
+  "name": "HackerNews Course Trend Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Daily 06:00 CET",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300],
+      "id": "schedule-trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://hacker-news.firebaseio.com/v0/topstories.json",
+        "options": {}
+      },
+      "name": "Fetch HackerNews Top Stories",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300],
+      "id": "fetch-top-stories"
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "number": [
+            {
+              "name": "limit",
+              "value": 5
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Limit to Top 5",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [650, 300],
+      "id": "limit-top-5",
+      "notes": "Take only the first 5 story IDs"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Loop Over Stories",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [850, 300],
+      "id": "loop-stories"
+    },
+    {
+      "parameters": {
+        "url": "=https://hacker-news.firebaseio.com/v0/item/{{$json.data[0]}}.json",
+        "options": {}
+      },
+      "name": "Fetch Story Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 300],
+      "id": "fetch-story-details"
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-5-20250929"
+            },
+            {
+              "name": "max_tokens",
+              "value": 2048
+            },
+            {
+              "name": "temperature",
+              "value": 0.3
+            },
+            {
+              "name": "messages",
+              "value": "=[{\n  \"role\": \"user\",\n  \"content\": \"Analyze this HackerNews trend for tech course potential:\\n\\nTitle: {{$json.title}}\\nURL: {{$json.url}}\\nScore: {{$json.score}}\\n\\nProvide analysis in this JSON format:\\n{\\n  \\\"relevanceScore\\\": <0-100>,\\n  \\\"suggestedCourseTitle\\\": \\\"...\\\",\\n  \\\"suggestedDescription\\\": \\\"...\\\",\\n  \\\"keywords\\\": [\\\"...\\\"],\\n  \\\"estimatedDurationMinutes\\\": <number>,\\n  \\\"estimatedGenerationCostUsd\\\": <number>\\n}\\n\\nOnly suggest courses for genuinely educational tech topics. Score low (<40) for news, opinions, or non-technical content.\"\n}]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "AI Analysis (Claude)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 300],
+      "id": "ai-analysis",
+      "notes": "Analyze trend with Claude AI for course suitability",
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-api-credentials",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const storyData = $input.first().json;\nconst aiResponse = storyData.content[0].text;\n\n// Parse AI JSON response\nlet aiAnalysis;\ntry {\n  // Extract JSON from markdown code blocks if present\n  const jsonMatch = aiResponse.match(/```json\\n([\\s\\S]*?)\\n```/) || \n                    aiResponse.match(/\\{[\\s\\S]*\\}/);\n  aiAnalysis = JSON.parse(jsonMatch ? jsonMatch[1] || jsonMatch[0] : aiResponse);\n} catch (error) {\n  // Fallback if parsing fails\n  aiAnalysis = {\n    relevanceScore: 0,\n    suggestedCourseTitle: storyData.title,\n    suggestedDescription: \"Failed to analyze\",\n    keywords: [],\n    estimatedDurationMinutes: 60,\n    estimatedGenerationCostUsd: 1.0\n  };\n}\n\nreturn {\n  sourceId: String(storyData.id),\n  sourceUrl: storyData.url || `https://news.ycombinator.com/item?id=${storyData.id}`,\n  title: storyData.title,\n  score: storyData.score || 0,\n  author: storyData.by || \"unknown\",\n  time: storyData.time || Math.floor(Date.now() / 1000),\n  aiAnalysis: aiAnalysis\n};"
+      },
+      "name": "Merge Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300],
+      "id": "merge-data",
+      "notes": "Combine HackerNews data with AI analysis"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.WEBHOOK_URL}}/api/webhooks/n8n-trend",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.WEBHOOK_SECRET}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "",
+              "value": "={{$json}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send to Next.js Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1650, 300],
+      "id": "send-webhook",
+      "notes": "POST trend data to CourseHub API"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "relevance-filter",
+              "leftValue": "={{$json.aiAnalysis.relevanceScore}}",
+              "rightValue": 40,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Filter: Relevance >= 40",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1250, 500],
+      "id": "relevance-filter",
+      "notes": "Only process trends with relevance score >= 40"
+    }
+  ],
+  "connections": {
+    "Schedule Daily 06:00 CET": {
+      "main": [
+        [
+          {
+            "node": "Fetch HackerNews Top Stories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch HackerNews Top Stories": {
+      "main": [
+        [
+          {
+            "node": "Limit to Top 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit to Top 5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Stories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Stories": {
+      "main": [
+        [
+          {
+            "node": "Fetch Story Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Story Details": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis (Claude)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis (Claude)": {
+      "main": [
+        [
+          {
+            "node": "Merge Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Data": {
+      "main": [
+        [
+          {
+            "node": "Filter: Relevance >= 40",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Relevance >= 40": {
+      "main": [
+        [
+          {
+            "node": "Send to Next.js Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-26T15:00:00.000Z",
+      "updatedAt": "2025-10-26T15:00:00.000Z",
+      "id": "trend-scraper",
+      "name": "Trend Scraper"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-10-26T15:00:00.000Z",
+  "versionId": "1"
+}
