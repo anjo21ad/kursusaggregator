@@ -1,0 +1,44 @@
+# Railway.app Configuration for n8n Deployment
+# This file configures health checks, restart policy, and deployment settings
+# for the n8n workflow automation container
+
+[deploy]
+# Restart policy: Automatically restart container on failure
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10  # Prevent infinite restart loops
+
+# Health check configuration
+healthcheckPath = "/healthz"  # n8n provides /healthz endpoint
+healthcheckTimeout = 300       # 5 minutes for initial startup (n8n can be slow)
+
+# Deployment configuration
+startCommand = "n8n start"     # Command to start n8n
+
+[build]
+# Use custom Dockerfile for n8n (optimized for Railway + PostgreSQL)
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.n8n"
+
+[env]
+# Non-secret environment variables
+# Secrets (API keys, passwords) should be set in Railway dashboard
+N8N_PORT = "5678"
+N8N_HOST = "0.0.0.0"
+N8N_PROTOCOL = "https"
+NODE_ENV = "production"
+
+# Execution settings
+EXECUTIONS_MODE = "regular"
+EXECUTIONS_TIMEOUT = "3600"  # 1 hour max per workflow execution
+
+# Enable execution data pruning (save storage costs)
+EXECUTIONS_DATA_PRUNE = "true"
+EXECUTIONS_DATA_MAX_AGE = "168"  # Keep executions for 7 days
+
+# Logging
+N8N_LOG_LEVEL = "info"  # Use "error" in production for less noise
+N8N_LOG_OUTPUT = "console"
+
+# Timezone (important for cron schedule)
+GENERIC_TIMEZONE = "Europe/Copenhagen"
+TZ = "Europe/Copenhagen"
