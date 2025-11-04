@@ -19,26 +19,5 @@ startCommand = "n8n start"     # Command to start n8n
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.n8n"
 
-[env]
-# Non-secret environment variables
-# Secrets (API keys, passwords) should be set in Railway dashboard
-N8N_PORT = "5678"
-N8N_HOST = "0.0.0.0"
-N8N_PROTOCOL = "https"
-NODE_ENV = "production"
-
-# Execution settings
-EXECUTIONS_MODE = "regular"
-EXECUTIONS_TIMEOUT = "3600"  # 1 hour max per workflow execution
-
-# Enable execution data pruning (save storage costs)
-EXECUTIONS_DATA_PRUNE = "true"
-EXECUTIONS_DATA_MAX_AGE = "168"  # Keep executions for 7 days
-
-# Logging
-N8N_LOG_LEVEL = "info"  # Use "error" in production for less noise
-N8N_LOG_OUTPUT = "console"
-
-# Timezone (important for cron schedule)
-GENERIC_TIMEZONE = "Europe/Copenhagen"
-TZ = "Europe/Copenhagen"
+# Note: All environment variables are set in Railway Dashboard Variables
+# This avoids conflicts and allows easier management of secrets
