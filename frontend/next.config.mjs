@@ -5,6 +5,10 @@ const nextConfig = {
   // Disable production source maps
   productionBrowserSourceMaps: false,
 
+  // Tell Next.js that pages are in src/ directory (not root)
+  // This is critical for Vercel deployment
+  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+
   // Disable ESLint during builds (TODO: Fix lint errors later)
   eslint: {
     ignoreDuringBuilds: true,
