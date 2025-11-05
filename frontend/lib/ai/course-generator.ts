@@ -7,7 +7,7 @@
  * Target: <$1 per course, <2 hours generation time
  */
 
-import { generateJSON } from './client';
+import { generateJSON, CLAUDE_SONNET_4 } from './client';
 import { CURRICULUM_SYSTEM_PROMPT, getCurriculumPrompt } from './prompts';
 import https from 'https';
 
@@ -119,6 +119,7 @@ async function generateCurriculum(proposal: TrendProposal) {
   return await generateJSON<CourseCurriculum>(
     systemPrompt,
     userPrompt,
+    CLAUDE_SONNET_4, // Model: claude-sonnet-4-20250514
     4000 // Max tokens for curriculum
   );
 }
