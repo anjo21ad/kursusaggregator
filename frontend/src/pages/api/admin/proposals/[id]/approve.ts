@@ -66,7 +66,7 @@ export default async function handler(
 
     const updatedData = {
       status: 'APPROVED',
-      updated_at: new Date().toISOString()
+      updatedAt: new Date().toISOString()
     };
 
     const result = await new Promise<any>((resolve, reject) => {
