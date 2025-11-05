@@ -292,13 +292,13 @@ export default function AdminProposalsPage() {
                     <div>
                       <span className="text-dark-text-secondary">Relevance Score:</span>
                       <span className="ml-2 text-white font-medium">
-                        {Math.round(proposal.aiCourseProposal.relevanceScore * 100)}%
+                        {Math.round(proposal.aiCourseProposal.relevanceScore)}%
                       </span>
                       <div className="mt-1 h-2 bg-dark-card rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-primary to-secondary"
                           style={{
-                            width: `${proposal.aiCourseProposal.relevanceScore * 100}%`,
+                            width: `${proposal.aiCourseProposal.relevanceScore}%`,
                           }}
                         />
                       </div>
