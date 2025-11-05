@@ -7,13 +7,13 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 type TrendProposal = {
   id: string;
   source: string;
-  source_id: string;
-  source_url: string;
+  sourceId: string;
+  sourceUrl: string;
   title: string;
   description: string;
   keywords: string[];
-  trend_score: number;
-  ai_course_proposal: {
+  trendScore: number;
+  aiCourseProposal: {
     relevanceScore: number;
     suggestedCourseTitle: string;
     suggestedDescription: string;
@@ -25,12 +25,12 @@ type TrendProposal = {
       score: number;
     };
   };
-  estimated_duration_minutes: number;
-  estimated_generation_cost_usd: number;
-  estimated_engagement_score: number;
+  estimatedDurationMinutes: number;
+  estimatedGenerationCostUsd: number;
+  estimatedEngagementScore: number;
   status: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export default function AdminProposalsPage() {
@@ -256,27 +256,27 @@ export default function AdminProposalsPage() {
                       <StatusBadge status={proposal.status} type="proposal" />
                     </div>
                     <a
-                      href={proposal.source_url}
+                      href={proposal.sourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-primary hover:underline"
                     >
-                      🔗 {proposal.source_url}
+                      🔗 {proposal.sourceUrl}
                     </a>
                   </div>
                 </div>
 
                 {/* HackerNews Metadata */}
-                {proposal.ai_course_proposal.hackernewsData && (
+                {proposal.aiCourseProposal.hackernewsData && (
                   <div className="flex gap-4 mb-4 text-sm text-dark-text-secondary">
                     <span>
-                      👤 {proposal.ai_course_proposal.hackernewsData.author}
+                      👤 {proposal.aiCourseProposal.hackernewsData.author}
                     </span>
                     <span>
-                      🔥 {proposal.ai_course_proposal.hackernewsData.score} points
+                      🔥 {proposal.aiCourseProposal.hackernewsData.score} points
                     </span>
                     <span>
-                      📅 {formatDate(proposal.created_at)}
+                      📅 {formatDate(proposal.createdAt)}
                     </span>
                   </div>
                 )}
@@ -292,13 +292,13 @@ export default function AdminProposalsPage() {
                     <div>
                       <span className="text-dark-text-secondary">Relevance Score:</span>
                       <span className="ml-2 text-white font-medium">
-                        {Math.round(proposal.ai_course_proposal.relevanceScore * 100)}%
+                        {Math.round(proposal.aiCourseProposal.relevanceScore * 100)}%
                       </span>
                       <div className="mt-1 h-2 bg-dark-card rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-primary to-secondary"
                           style={{
-                            width: `${proposal.ai_course_proposal.relevanceScore * 100}%`,
+                            width: `${proposal.aiCourseProposal.relevanceScore * 100}%`,
                           }}
                         />
                       </div>
@@ -307,21 +307,21 @@ export default function AdminProposalsPage() {
                     <div>
                       <span className="text-dark-text-secondary">Foreslået Kursus Titel:</span>
                       <p className="text-white font-medium mt-1">
-                        {proposal.ai_course_proposal.suggestedCourseTitle}
+                        {proposal.aiCourseProposal.suggestedCourseTitle}
                       </p>
                     </div>
 
                     <div>
                       <span className="text-dark-text-secondary">Beskrivelse:</span>
                       <p className="text-white mt-1">
-                        {proposal.ai_course_proposal.suggestedDescription}
+                        {proposal.aiCourseProposal.suggestedDescription}
                       </p>
                     </div>
 
                     <div>
                       <span className="text-dark-text-secondary">Keywords:</span>
                       <div className="flex flex-wrap gap-2 mt-1">
-                        {proposal.ai_course_proposal.keywords.map((keyword, idx) => (
+                        {proposal.aiCourseProposal.keywords.map((keyword, idx) => (
                           <span
                             key={idx}
                             className="px-2 py-1 bg-primary/20 text-primary text-xs rounded"
@@ -334,10 +334,10 @@ export default function AdminProposalsPage() {
 
                     <div className="flex gap-4 mt-2">
                       <span className="text-dark-text-secondary">
-                        ⏱️ Estimeret varighed: {proposal.estimated_duration_minutes} min
+                        ⏱️ Estimeret varighed: {proposal.estimatedDurationMinutes} min
                       </span>
                       <span className="text-dark-text-secondary">
-                        💰 Estimeret cost: ${proposal.estimated_generation_cost_usd.toFixed(2)}
+                        💰 Estimeret cost: ${proposal.estimatedGenerationCostUsd.toFixed(2)}
                       </span>
                     </div>
                   </div>
