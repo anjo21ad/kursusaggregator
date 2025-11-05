@@ -1,7 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
+import { createClient } from '@supabase/supabase-js';
 
-const prisma = new PrismaClient();
+// Initialize Supabase client (serverless-friendly)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 type N8nTrendPayload = {
   // HackerNews Data
@@ -40,6 +42,8 @@ type ApiResponse = {
  *
  * Authentication: Bearer token (N8N_WEBHOOK_SECRET)
  * Source: HackerNews top stories (Phase 1)
+ *
+ * Uses Supabase client for serverless-friendly database access
  */
 export default async function handler(
   req: NextApiRequest,
@@ -104,13 +108,25 @@ export default async function handler(
       });
     }
 
-    // 3. Check for duplicates (by sourceId)
-    const existing = await prisma.trendProposal.findFirst({
-      where: {
-        sourceId: payload.sourceId,
-        source: 'hackernews'
-      }
-    });
+    // 3. Initialize Supabase client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // 4. Check for duplicates (by sourceId)
+    const { data: existing, error: findError } = await supabase
+      .from('trend_proposals')
+      .select('id, status')
+      .eq('source_id', payload.sourceId)
+      .eq('source', 'hackernews')
+      .maybeSingle();
+
+    if (findError) {
+      console.error('[n8n-trend] Error checking for duplicates:', findError);
+      return res.status(500).json({
+        success: false,
+        message: 'Database query error',
+        error: findError.message
+      });
+    }
 
     if (existing) {
       return res.status(200).json({
@@ -123,22 +139,23 @@ export default async function handler(
       });
     }
 
-    // 4. Create TrendProposal
-    const trendProposal = await prisma.trendProposal.create({
-      data: {
+    // 5. Create TrendProposal
+    const { data: trendProposal, error: insertError } = await supabase
+      .from('trend_proposals')
+      .insert({
         // Source Data
         source: 'hackernews',
-        sourceId: payload.sourceId,
-        sourceUrl: payload.sourceUrl,
+        source_id: payload.sourceId,
+        source_url: payload.sourceUrl,
 
         // Trend Information
         title: payload.title,
         description: payload.aiAnalysis.suggestedDescription || '',
         keywords: payload.aiAnalysis.keywords || [],
-        trendScore: payload.score || 0,
+        trend_score: payload.score || 0,
 
         // AI Analysis
-        aiCourseProposal: {
+        ai_course_proposal: {
           relevanceScore: payload.aiAnalysis.relevanceScore,
           suggestedCourseTitle: payload.aiAnalysis.suggestedCourseTitle,
           suggestedDescription: payload.aiAnalysis.suggestedDescription,
@@ -151,18 +168,28 @@ export default async function handler(
           }
         },
 
-        estimatedDurationMinutes: payload.aiAnalysis.estimatedDurationMinutes,
-        estimatedGenerationCostUsd: payload.aiAnalysis.estimatedGenerationCostUsd,
-        estimatedEngagementScore: payload.aiAnalysis.relevanceScore,
+        estimated_duration_minutes: payload.aiAnalysis.estimatedDurationMinutes,
+        estimated_generation_cost_usd: payload.aiAnalysis.estimatedGenerationCostUsd,
+        estimated_engagement_score: payload.aiAnalysis.relevanceScore,
 
-        // Status (defaults to PENDING in schema)
+        // Status (defaults to PENDING)
         status: 'PENDING'
-      }
-    });
+      })
+      .select('id, status')
+      .single();
 
-    console.log(`[n8n-trend] Created TrendProposal: ${trendProposal.id} - ${trendProposal.title}`);
+    if (insertError) {
+      console.error('[n8n-trend] Error creating TrendProposal:', insertError);
+      return res.status(500).json({
+        success: false,
+        message: 'Database insert error',
+        error: insertError.message
+      });
+    }
 
-    // 5. Return success
+    console.log(`[n8n-trend] Created TrendProposal: ${trendProposal.id} - ${payload.title}`);
+
+    // 6. Return success
     return res.status(201).json({
       success: true,
       message: 'Trend proposal created successfully',
@@ -180,7 +207,5 @@ export default async function handler(
       message: 'Internal server error',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
-  } finally {
-    await prisma.$disconnect();
   }
 }
