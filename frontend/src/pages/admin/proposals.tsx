@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
 import AdminLayout from '@/components/admin/AdminLayout';
 import StatusBadge from '@/components/admin/StatusBadge';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -16,8 +15,10 @@ type TrendProposal = {
   aiCourseProposal: {
     relevanceScore: number;
     suggestedCourseTitle: string;
+    suggestedTitle?: string; // Legacy support
     suggestedDescription: string;
     keywords: string[];
+    keyTopics?: string[]; // Legacy support
     estimatedDurationMinutes: number;
     hackernewsData?: {
       author: string;
@@ -34,7 +35,6 @@ type TrendProposal = {
 };
 
 export default function AdminProposalsPage() {
-  const router = useRouter();
   const [proposals, setProposals] = useState<TrendProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -343,7 +343,7 @@ export default function AdminProposalsPage() {
                     <div>
                       <span className="text-dark-text-secondary">Foreslået Kursus Titel:</span>
                       <p className="text-white font-medium mt-1">
-                        {proposal.aiCourseProposal.suggestedCourseTitle || (proposal.aiCourseProposal as any).suggestedTitle || 'N/A'}
+                        {proposal.aiCourseProposal.suggestedCourseTitle || proposal.aiCourseProposal.suggestedTitle || 'N/A'}
                       </p>
                     </div>
 
@@ -359,7 +359,7 @@ export default function AdminProposalsPage() {
                     <div>
                       <span className="text-dark-text-secondary">Keywords:</span>
                       <div className="flex flex-wrap gap-2 mt-1">
-                        {(proposal.aiCourseProposal.keywords || (proposal.aiCourseProposal as any).keyTopics || []).map((keyword: string, idx: number) => (
+                        {(proposal.aiCourseProposal.keywords || proposal.aiCourseProposal.keyTopics || []).map((keyword: string, idx: number) => (
                           <span
                             key={idx}
                             className="px-2 py-1 bg-primary/20 text-primary text-xs rounded"

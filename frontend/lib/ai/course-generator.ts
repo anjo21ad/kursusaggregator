@@ -170,7 +170,7 @@ export async function saveCourseToDatabase(
   // Insert course via REST API
   const url = new URL('/rest/v1/courses', supabaseUrl);
 
-  const courseResult = await new Promise<any>((resolve, reject) => {
+  const courseResult = await new Promise<unknown>((resolve, reject) => {
     const options = {
       hostname: url.hostname,
       port: 443,
@@ -234,7 +234,11 @@ async function updateProposalStatus(
 
   const url = new URL(`/rest/v1/trend_proposals?id=eq.${proposalId}`, supabaseUrl);
 
-  const updateData: any = {
+  const updateData: {
+    status: string;
+    updatedAt: string;
+    generatedCourseId?: string;
+  } = {
     status,
     updatedAt: new Date().toISOString(),
   };

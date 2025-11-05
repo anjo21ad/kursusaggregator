@@ -158,7 +158,7 @@ export async function generateContent(
  * @param maxTokens - Maximum output tokens
  * @returns Parsed JSON object and usage metadata
  */
-export async function generateJSON<T = any>(
+export async function generateJSON<T = unknown>(
   systemPrompt: string,
   userPrompt: string,
   model: string = CLAUDE_SONNET_3_5,
