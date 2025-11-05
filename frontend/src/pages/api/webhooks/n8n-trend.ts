@@ -29,6 +29,7 @@ type ApiResponse = {
     status: string;
   };
   error?: string;
+  debug?: any; // Debug info for troubleshooting
 };
 
 /**
