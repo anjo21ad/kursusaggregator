@@ -119,6 +119,8 @@ Generate the curriculum now:`;
 // ============================================================================
 // EXISTING CODE (Course Matching)
 // ============================================================================
+
+interface CompanyContext {
   name: string;
   industry?: string;
   size?: string;
