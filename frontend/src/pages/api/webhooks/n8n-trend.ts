@@ -108,6 +108,16 @@ export default async function handler(
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    // DEBUG: Return config info to see what's available
+    const debugInfo = {
+      url: supabaseUrl,
+      hasKey: !!supabaseServiceKey,
+      keyLength: supabaseServiceKey?.length,
+      allEnvKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
+    };
+
+    console.log('[n8n-trend] Supabase config:', debugInfo);
+
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('[n8n-trend] Missing Supabase credentials:', {
         hasUrl: !!supabaseUrl,
@@ -145,7 +155,8 @@ export default async function handler(
       return res.status(500).json({
         success: false,
         message: 'Database query error',
-        error: err instanceof Error ? err.message : 'Supabase connection failed'
+        error: err instanceof Error ? err.message : 'Supabase connection failed',
+        debug: debugInfo // Include debug info in error response
       });
     }
 
