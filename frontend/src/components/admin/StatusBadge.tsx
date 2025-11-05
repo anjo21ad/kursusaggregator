@@ -1,6 +1,6 @@
 interface StatusBadgeProps {
   status: string
-  type: 'course' | 'provider' | 'lead'
+  type: 'course' | 'provider' | 'lead' | 'proposal'
 }
 
 export default function StatusBadge({ status, type }: StatusBadgeProps) {
@@ -50,6 +50,23 @@ export default function StatusBadge({ status, type }: StatusBadgeProps) {
       }
     }
 
+    if (type === 'proposal') {
+      switch (status) {
+        case 'PENDING':
+          return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+        case 'APPROVED':
+          return 'bg-success/20 text-success border-success/30'
+        case 'REJECTED':
+          return 'bg-red-500/20 text-red-400 border-red-500/30'
+        case 'GENERATING':
+          return 'bg-primary/20 text-primary border-primary/30'
+        case 'PUBLISHED':
+          return 'bg-success/20 text-success border-success/30'
+        default:
+          return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+      }
+    }
+
     return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
   }
 
@@ -73,6 +90,9 @@ export default function StatusBadge({ status, type }: StatusBadgeProps) {
       CONTACTED: 'Kontaktet',
       CONVERTED: 'Konverteret',
       CLOSED: 'Lukket',
+
+      // Proposal statuses
+      GENERATING: 'Genererer',
     }
 
     return labels[status] || status

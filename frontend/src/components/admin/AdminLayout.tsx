@@ -15,6 +15,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
 
   const menuItems = [
     { href: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
+    { href: '/admin/proposals', label: 'Trend Forslag', icon: '🔥' },
     { href: '/admin/courses', label: 'Kurser', icon: '📚' },
     { href: '/admin/categories', label: 'Kategorier', icon: '🗂️' },
     { href: '/admin/providers', label: 'Udbydere', icon: '🏢' },
