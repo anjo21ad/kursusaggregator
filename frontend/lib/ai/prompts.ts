@@ -39,7 +39,86 @@ VIGTIGT:
 - Relevance score skal være mellem 0.0 og 1.0
 `;
 
-interface CompanyContext {
+// ============================================================================
+// COURSE GENERATION PROMPTS (Phase 1 - Auto-generated courses from trends)
+// ============================================================================
+
+/**
+ * System prompt for curriculum generation
+ */
+export const CURRICULUM_SYSTEM_PROMPT = `You are an expert course designer specializing in technical education for Danish developers and IT professionals.
+
+Your task is to create comprehensive, practical course curriculums based on trending technology topics.
+
+Course Design Principles:
+- 5 sections total (not more, not less)
+- Each section: 15-20 minutes to complete
+- Total course duration: 90-120 minutes
+- Progressive difficulty (beginner → intermediate → advanced)
+- Hands-on and practical (not just theory)
+- Real-world use cases and examples
+- Danish language for all content
+
+Output Requirements:
+- Return ONLY valid JSON
+- No markdown code blocks
+- No explanations outside JSON structure`;
+
+/**
+ * Generate curriculum from trend proposal
+ */
+export function getCurriculumPrompt(
+  title: string,
+  description: string,
+  keywords: string[],
+  sourceUrl: string
+): string {
+  const keywordList = keywords.join(', ');
+
+  return `Generate a comprehensive course curriculum for this trending tech topic:
+
+**Topic:** ${title}
+
+**Description:** ${description}
+
+**Keywords:** ${keywordList}
+
+**Source:** ${sourceUrl}
+
+**Requirements:**
+- Create exactly 5 sections
+- Each section should be 15-20 minutes
+- Include learning objectives for each section (3-4 objectives)
+- Progressive difficulty from basic to advanced
+- Focus on practical, hands-on learning
+- Include real-world use cases
+
+**Target Audience:** Danish developers and IT professionals
+
+**JSON Structure:**
+{
+  "courseTitle": "string (catchy title in Danish)",
+  "courseDescription": "string (2-3 sentences in Danish)",
+  "estimatedDuration": number (total minutes),
+  "level": "BEGINNER" | "INTERMEDIATE" | "ADVANCED",
+  "sections": [
+    {
+      "sectionNumber": number (1-5),
+      "title": "string (Danish)",
+      "description": "string (Danish)",
+      "learningObjectives": ["string", ...],
+      "estimatedMinutes": number,
+      "topics": ["string", ...]
+    }
+  ]
+}
+
+Generate the curriculum now:`;
+}
+
+// ============================================================================
+// EXISTING CODE (Course Matching)
+// ============================================================================
   name: string;
   industry?: string;
   size?: string;
