@@ -109,15 +109,46 @@ export default async function handler(
     }
 
     // 3. Initialize Supabase client
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[n8n-trend] Missing Supabase credentials:', {
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseServiceKey,
+        urlPrefix: supabaseUrl?.substring(0, 20)
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error',
+        error: 'Supabase credentials not configured'
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
 
     // 4. Check for duplicates (by sourceId)
-    const { data: existing, error: findError } = await supabase
-      .from('trend_proposals')
-      .select('id, status')
-      .eq('source_id', payload.sourceId)
-      .eq('source', 'hackernews')
-      .maybeSingle();
+    let existing, findError;
+    try {
+      const result = await supabase
+        .from('trend_proposals')
+        .select('id, status')
+        .eq('source_id', payload.sourceId)
+        .eq('source', 'hackernews')
+        .maybeSingle();
+
+      existing = result.data;
+      findError = result.error;
+    } catch (err) {
+      console.error('[n8n-trend] Supabase fetch error:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Database query error',
+        error: err instanceof Error ? err.message : 'Supabase connection failed'
+      });
+    }
 
     if (findError) {
       console.error('[n8n-trend] Error checking for duplicates:', findError);
