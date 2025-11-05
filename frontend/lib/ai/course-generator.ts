@@ -1,13 +1,13 @@
 /**
  * Course Generator
- * 
+ *
  * Auto-generates complete courses from approved trend proposals using Claude AI
- * 
+ *
  * Phase 1: Text-only content (no video, no podcast)
  * Target: <$1 per course, <2 hours generation time
  */
 
-import { generateJSON } from './anthropic-client';
+import { generateJSON } from './client';
 import { CURRICULUM_SYSTEM_PROMPT, getCurriculumPrompt } from './prompts';
 import https from 'https';
 
