@@ -141,6 +141,40 @@ export default function AdminProposalsPage() {
     }
   };
 
+  const handleGenerateCourse = async (id: string) => {
+    if (!confirm('🚀 Generer kursus fra dette forslag?\n\nDette vil bruge Claude AI til at generere et komplet kursus.')) {
+      return;
+    }
+
+    setActionLoading(id);
+
+    try {
+      const res = await fetch(`/api/admin/generate-course/${id}`, {
+        method: 'POST',
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      }
+
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to generate course');
+      }
+
+      // Refresh proposals list
+      await fetchProposals();
+
+      alert(`✅ Kursus genereret!\n\n📚 Titel: ${data.data.title}\n💰 Cost: $${data.data.cost.toFixed(4)}\n⏱️ Tid: ${data.data.generationTime}s`);
+    } catch (err) {
+      console.error('Error generating course:', err);
+      alert(`❌ Fejl ved kursus generering:\n${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Filter proposals by status
   const filteredProposals = proposals.filter((proposal) => {
     if (statusFilter === 'all') return true;
@@ -368,9 +402,29 @@ export default function AdminProposalsPage() {
                 )}
 
                 {proposal.status === 'APPROVED' && (
-                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-center">
-                    <p className="text-green-400 text-sm">
-                      ✅ Godkendt - Klar til kursus generering (Phase 2)
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                    <button
+                      onClick={() => handleGenerateCourse(proposal.id)}
+                      disabled={actionLoading === proposal.id}
+                      className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-secondary-dark text-white font-medium py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {actionLoading === proposal.id ? '⏳ Genererer kursus...' : '🚀 Generer Kursus med AI'}
+                    </button>
+                  </div>
+                )}
+
+                {proposal.status === 'GENERATING' && (
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-center">
+                    <p className="text-blue-400 text-sm animate-pulse">
+                      ⏳ Genererer kursus med Claude AI...
+                    </p>
+                  </div>
+                )}
+
+                {proposal.status === 'PUBLISHED' && (
+                  <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 text-center">
+                    <p className="text-purple-400 text-sm">
+                      🎉 Kursus udgivet og tilgængeligt
                     </p>
                   </div>
                 )}
