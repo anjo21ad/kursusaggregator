@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import https from 'https';
+import { randomUUID } from 'crypto';
 
 type N8nTrendPayload = {
   sourceId: string;
@@ -224,6 +225,7 @@ export default async function handler(
 
     // 5. Create TrendProposal
     const insertData = {
+      id: randomUUID(), // Generate UUID manually for Supabase REST API
       source: 'hackernews',
       sourceId: payload.sourceId,
       sourceUrl: payload.sourceUrl,
