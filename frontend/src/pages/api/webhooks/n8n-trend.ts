@@ -193,14 +193,19 @@ export default async function handler(
       supabaseUrl,
       supabaseServiceKey,
       'GET',
-      `/trend_proposals?source_id=eq.${encodeURIComponent(payload.sourceId)}&source=eq.hackernews&select=id,status`
+      `/trend_proposals?sourceId=eq.${encodeURIComponent(payload.sourceId)}&source=eq.hackernews&select=id,status`
     );
 
     if (findResult.statusCode !== 200 && findResult.statusCode !== 404) {
+      console.error('[n8n-trend] Supabase query error:', {
+        statusCode: findResult.statusCode,
+        data: findResult.data,
+        rawData: findResult.rawData
+      });
       return res.status(500).json({
         success: false,
         message: 'Database query error',
-        error: `Status ${findResult.statusCode}: ${findResult.rawData || 'Unknown error'}`
+        error: `Status ${findResult.statusCode}: ${JSON.stringify(findResult.data || findResult.rawData || 'Unknown error')}`
       });
     }
 
@@ -220,13 +225,13 @@ export default async function handler(
     // 5. Create TrendProposal
     const insertData = {
       source: 'hackernews',
-      source_id: payload.sourceId,
-      source_url: payload.sourceUrl,
+      sourceId: payload.sourceId,
+      sourceUrl: payload.sourceUrl,
       title: payload.title,
       description: payload.aiAnalysis.suggestedDescription || '',
       keywords: payload.aiAnalysis.keywords || [],
-      trend_score: payload.score || 0,
-      ai_course_proposal: {
+      trendScore: payload.score || 0,
+      aiCourseProposal: {
         relevanceScore: payload.aiAnalysis.relevanceScore,
         suggestedCourseTitle: payload.aiAnalysis.suggestedCourseTitle,
         suggestedDescription: payload.aiAnalysis.suggestedDescription,
@@ -238,9 +243,9 @@ export default async function handler(
           score: payload.score
         }
       },
-      estimated_duration_minutes: payload.aiAnalysis.estimatedDurationMinutes,
-      estimated_generation_cost_usd: payload.aiAnalysis.estimatedGenerationCostUsd,
-      estimated_engagement_score: payload.aiAnalysis.relevanceScore,
+      estimatedDurationMinutes: payload.aiAnalysis.estimatedDurationMinutes,
+      estimatedGenerationCostUsd: payload.aiAnalysis.estimatedGenerationCostUsd,
+      estimatedEngagementScore: payload.aiAnalysis.relevanceScore,
       status: 'PENDING'
     };
 
