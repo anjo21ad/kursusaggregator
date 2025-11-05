@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
 
 type N8nTrendPayload = {
   // HackerNews Data
@@ -105,26 +104,18 @@ export default async function handler(
       });
     }
 
-    // 3. Initialize Supabase client (read env vars at runtime)
+    // 3. Get Supabase credentials (read env vars at runtime)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    // DEBUG: Return config info to see what's available
-    const debugInfo = {
-      url: supabaseUrl,
+    console.log('[n8n-trend] Supabase config check:', {
+      hasUrl: !!supabaseUrl,
       hasKey: !!supabaseServiceKey,
-      keyLength: supabaseServiceKey?.length,
-      allEnvKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE'))
-    };
-
-    console.log('[n8n-trend] Supabase config:', debugInfo);
+      urlPrefix: supabaseUrl?.substring(0, 40)
+    });
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('[n8n-trend] Missing Supabase credentials:', {
-        hasUrl: !!supabaseUrl,
-        hasKey: !!supabaseServiceKey,
-        urlPrefix: supabaseUrl?.substring(0, 20)
-      });
+      console.error('[n8n-trend] Missing Supabase credentials');
       return res.status(500).json({
         success: false,
         message: 'Server configuration error',
@@ -132,114 +123,163 @@ export default async function handler(
       });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false
+    // Helper function: Direct REST API call with retry logic
+    const supabaseRestCall = async (
+      endpoint: string,
+      options: RequestInit = {},
+      retries = 3
+    ): Promise<Response> => {
+      const url = `${supabaseUrl}/rest/v1${endpoint}`;
+      const headers = {
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+      };
+
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          console.log(`[n8n-trend] REST API call attempt ${attempt + 1}/${retries + 1}: ${endpoint}`);
+
+          const response = await fetch(url, {
+            ...options,
+            headers,
+            // Add timeout
+            signal: AbortSignal.timeout(10000) // 10 second timeout
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[n8n-trend] REST API error ${response.status}:`, errorText);
+            throw new Error(`Supabase API error: ${response.status} - ${errorText}`);
+          }
+
+          return response;
+        } catch (err) {
+          console.error(`[n8n-trend] REST API attempt ${attempt + 1} failed:`, err);
+
+          // If last attempt, throw error
+          if (attempt === retries) {
+            throw err;
+          }
+
+          // Exponential backoff: 2s, 4s, 8s
+          const delay = Math.pow(2, attempt + 1) * 1000;
+          console.log(`[n8n-trend] Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-    });
+
+      throw new Error('All retry attempts failed');
+    };
 
     // 4. Check for duplicates (by sourceId)
-    let existing, findError;
     try {
-      const result = await supabase
-        .from('trend_proposals')
-        .select('id, status')
-        .eq('source_id', payload.sourceId)
-        .eq('source', 'hackernews')
-        .maybeSingle();
+      const duplicateCheckEndpoint = `/trend_proposals?source_id=eq.${encodeURIComponent(payload.sourceId)}&source=eq.hackernews&select=id,status`;
 
-      existing = result.data;
-      findError = result.error;
-    } catch (err) {
-      console.error('[n8n-trend] Supabase fetch error:', err);
-      return res.status(500).json({
-        success: false,
-        message: 'Database query error',
-        error: err instanceof Error ? err.message : 'Supabase connection failed',
-        debug: debugInfo // Include debug info in error response
-      });
-    }
-
-    if (findError) {
-      console.error('[n8n-trend] Error checking for duplicates:', findError);
-      return res.status(500).json({
-        success: false,
-        message: 'Database query error',
-        error: findError.message
-      });
-    }
-
-    if (existing) {
-      return res.status(200).json({
-        success: true,
-        message: 'Trend already exists',
-        data: {
-          id: existing.id,
-          status: existing.status
+      const response = await supabaseRestCall(duplicateCheckEndpoint, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/vnd.pgrst.object+json' // Return single object or null
         }
       });
+
+      const existing = await response.json();
+
+      // If we got a result, trend already exists
+      if (existing && existing.id) {
+        console.log(`[n8n-trend] Duplicate found: ${existing.id}`);
+        return res.status(200).json({
+          success: true,
+          message: 'Trend already exists',
+          data: {
+            id: existing.id,
+            status: existing.status
+          }
+        });
+      }
+    } catch (err) {
+      // If error is "406 Not Acceptable" or "Multiple rows", continue to insert
+      // If error is 404 or empty result, that's fine - no duplicate exists
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      if (errorMsg.includes('406') || errorMsg.includes('Multiple') || errorMsg.includes('404')) {
+        console.log('[n8n-trend] No duplicate found (expected)');
+      } else {
+        // Unexpected error - log and continue
+        console.error('[n8n-trend] Error checking duplicates (non-fatal):', err);
+      }
     }
 
-    // 5. Create TrendProposal
-    const { data: trendProposal, error: insertError } = await supabase
-      .from('trend_proposals')
-      .insert({
-        // Source Data
-        source: 'hackernews',
-        source_id: payload.sourceId,
-        source_url: payload.sourceUrl,
+    // 5. Create TrendProposal via REST API
+    const proposalData = {
+      // Source Data
+      source: 'hackernews',
+      source_id: payload.sourceId,
+      source_url: payload.sourceUrl,
 
-        // Trend Information
-        title: payload.title,
-        description: payload.aiAnalysis.suggestedDescription || '',
-        keywords: payload.aiAnalysis.keywords || [],
-        trend_score: payload.score || 0,
+      // Trend Information
+      title: payload.title,
+      description: payload.aiAnalysis.suggestedDescription || '',
+      keywords: payload.aiAnalysis.keywords || [],
+      trend_score: payload.score || 0,
 
-        // AI Analysis
-        ai_course_proposal: {
-          relevanceScore: payload.aiAnalysis.relevanceScore,
-          suggestedCourseTitle: payload.aiAnalysis.suggestedCourseTitle,
-          suggestedDescription: payload.aiAnalysis.suggestedDescription,
-          keywords: payload.aiAnalysis.keywords,
-          estimatedDurationMinutes: payload.aiAnalysis.estimatedDurationMinutes,
-          hackernewsData: {
-            author: payload.author,
-            time: payload.time,
-            score: payload.score
-          }
+      // AI Analysis
+      ai_course_proposal: {
+        relevanceScore: payload.aiAnalysis.relevanceScore,
+        suggestedCourseTitle: payload.aiAnalysis.suggestedCourseTitle,
+        suggestedDescription: payload.aiAnalysis.suggestedDescription,
+        keywords: payload.aiAnalysis.keywords,
+        estimatedDurationMinutes: payload.aiAnalysis.estimatedDurationMinutes,
+        hackernewsData: {
+          author: payload.author,
+          time: payload.time,
+          score: payload.score
+        }
+      },
+
+      estimated_duration_minutes: payload.aiAnalysis.estimatedDurationMinutes,
+      estimated_generation_cost_usd: payload.aiAnalysis.estimatedGenerationCostUsd,
+      estimated_engagement_score: payload.aiAnalysis.relevanceScore,
+
+      // Status (defaults to PENDING)
+      status: 'PENDING'
+    };
+
+    try {
+      const response = await supabaseRestCall('/trend_proposals', {
+        method: 'POST',
+        headers: {
+          'Prefer': 'return=representation' // Return created object
         },
+        body: JSON.stringify(proposalData)
+      });
 
-        estimated_duration_minutes: payload.aiAnalysis.estimatedDurationMinutes,
-        estimated_generation_cost_usd: payload.aiAnalysis.estimatedGenerationCostUsd,
-        estimated_engagement_score: payload.aiAnalysis.relevanceScore,
+      const createdProposals = await response.json();
+      const trendProposal = Array.isArray(createdProposals) ? createdProposals[0] : createdProposals;
 
-        // Status (defaults to PENDING)
-        status: 'PENDING'
-      })
-      .select('id, status')
-      .single();
+      if (!trendProposal || !trendProposal.id) {
+        throw new Error('Failed to create trend proposal - no ID returned');
+      }
 
-    if (insertError) {
-      console.error('[n8n-trend] Error creating TrendProposal:', insertError);
+      console.log(`[n8n-trend] ✅ Created TrendProposal: ${trendProposal.id} - ${payload.title}`);
+
+      // 6. Return success
+      return res.status(201).json({
+        success: true,
+        message: 'Trend proposal created successfully',
+        data: {
+          id: trendProposal.id,
+          status: trendProposal.status
+        }
+      });
+    } catch (err) {
+      console.error('[n8n-trend] Error creating TrendProposal:', err);
       return res.status(500).json({
         success: false,
         message: 'Database insert error',
-        error: insertError.message
+        error: err instanceof Error ? err.message : 'Failed to insert trend proposal'
       });
     }
-
-    console.log(`[n8n-trend] Created TrendProposal: ${trendProposal.id} - ${payload.title}`);
-
-    // 6. Return success
-    return res.status(201).json({
-      success: true,
-      message: 'Trend proposal created successfully',
-      data: {
-        id: trendProposal.id,
-        status: trendProposal.status
-      }
-    });
 
   } catch (error) {
     console.error('[n8n-trend] Error processing webhook:', error);
