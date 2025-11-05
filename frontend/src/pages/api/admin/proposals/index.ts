@@ -4,13 +4,13 @@ import https from 'https';
 type TrendProposal = {
   id: string;
   source: string;
-  source_id: string;
-  source_url: string;
+  sourceId: string;
+  sourceUrl: string;
   title: string;
   description: string;
   keywords: string[];
-  trend_score: number;
-  ai_course_proposal: {
+  trendScore: number;
+  aiCourseProposal: {
     relevanceScore: number;
     suggestedCourseTitle: string;
     suggestedDescription: string;
@@ -22,12 +22,12 @@ type TrendProposal = {
       score: number;
     };
   };
-  estimated_duration_minutes: number;
-  estimated_generation_cost_usd: number;
-  estimated_engagement_score: number;
+  estimatedDurationMinutes: number;
+  estimatedGenerationCostUsd: number;
+  estimatedEngagementScore: number;
   status: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type ApiResponse = {
@@ -72,7 +72,7 @@ export default async function handler(
 
     // Parse URL for trend_proposals query
     const url = new URL(
-      `/rest/v1/trend_proposals?select=*&order=created_at.desc`,
+      `/rest/v1/trend_proposals?select=*&order=createdAt.desc`,
       supabaseUrl
     );
 
