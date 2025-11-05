@@ -1,10 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import https from 'https';
 
 /**
  * Test endpoint to verify Supabase REST API connectivity from Vercel
  *
- * Uses direct fetch() to Supabase REST API instead of @supabase/supabase-js
- * to avoid "TypeError: fetch failed" issues in Vercel serverless runtime.
+ * Uses Node.js https module instead of fetch() to avoid "TypeError: fetch failed"
+ * issues in Vercel serverless runtime.
  */
 export default async function handler(
   req: NextApiRequest,
@@ -25,31 +26,58 @@ export default async function handler(
   }
 
   try {
-    // Test REST API call with timeout
-    const url = `${supabaseUrl}/rest/v1/trend_proposals?select=id,title,status&limit=5`;
+    // Parse URL
+    const url = new URL(`${supabaseUrl}/rest/v1/trend_proposals?select=id,title,status&limit=5`);
 
-    console.log('[test-supabase] Making REST API call to:', url.replace(/\/rest.*/, '/rest/v1/...'));
+    console.log('[test-supabase] Making HTTPS request to:', url.hostname + url.pathname);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'apikey': supabaseServiceKey,
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(10000) // 10 second timeout
-    });
+    // Make HTTPS request using Node.js https module
+    const data = await new Promise<any>((resolve, reject) => {
+      const options = {
+        hostname: url.hostname,
+        port: 443,
+        path: url.pathname + url.search,
+        method: 'GET',
+        headers: {
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000 // 10 second timeout
+      };
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return res.status(response.status).json({
-        success: false,
-        error: `Supabase API returned ${response.status}`,
-        details: errorText
+      const request = https.request(options, (response) => {
+        let body = '';
+
+        response.on('data', (chunk) => {
+          body += chunk;
+        });
+
+        response.on('end', () => {
+          if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+            try {
+              const parsed = JSON.parse(body);
+              resolve(parsed);
+            } catch (err) {
+              reject(new Error(`Failed to parse JSON: ${err}`));
+            }
+          } else {
+            reject(new Error(`HTTP ${response.statusCode}: ${body}`));
+          }
+        });
       });
-    }
 
-    const data = await response.json();
+      request.on('error', (err) => {
+        reject(err);
+      });
+
+      request.on('timeout', () => {
+        request.destroy();
+        reject(new Error('Request timeout after 10 seconds'));
+      });
+
+      request.end();
+    });
 
     return res.status(200).json({
       success: true,
@@ -58,7 +86,7 @@ export default async function handler(
         recordsFound: Array.isArray(data) ? data.length : 0,
         sampleRecords: data
       },
-      method: 'Direct REST API with native fetch()'
+      method: 'Node.js https module (not fetch)'
     });
   } catch (err) {
     return res.status(500).json({

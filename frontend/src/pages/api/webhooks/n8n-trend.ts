@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import https from 'https';
 
 type N8nTrendPayload = {
   // HackerNews Data
@@ -39,7 +40,7 @@ type ApiResponse = {
  * Authentication: Bearer token (N8N_WEBHOOK_SECRET)
  * Source: HackerNews top stories (Phase 1)
  *
- * Uses Supabase client for serverless-friendly database access
+ * Uses Node.js https module for maximum compatibility with Vercel runtime
  */
 export default async function handler(
   req: NextApiRequest,
@@ -123,40 +124,67 @@ export default async function handler(
       });
     }
 
-    // Helper function: Direct REST API call with retry logic
-    const supabaseRestCall = async (
-      endpoint: string,
-      options: RequestInit = {},
+    // Helper function: HTTPS request with retry logic
+    const httpsRequest = async (
+      url: URL,
+      options: https.RequestOptions,
+      body?: string,
       retries = 3
-    ): Promise<Response> => {
-      const url = `${supabaseUrl}/rest/v1${endpoint}`;
-      const headers = {
-        'apikey': supabaseServiceKey,
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-        'Content-Type': 'application/json',
-        ...options.headers
-      };
-
+    ): Promise<any> => {
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
-          console.log(`[n8n-trend] REST API call attempt ${attempt + 1}/${retries + 1}: ${endpoint}`);
+          console.log(`[n8n-trend] HTTPS request attempt ${attempt + 1}/${retries + 1}: ${url.pathname}`);
 
-          const response = await fetch(url, {
-            ...options,
-            headers,
-            // Add timeout
-            signal: AbortSignal.timeout(10000) // 10 second timeout
+          const result = await new Promise<any>((resolve, reject) => {
+            const request = https.request(
+              {
+                ...options,
+                hostname: url.hostname,
+                port: 443,
+                path: url.pathname + url.search,
+                timeout: 10000 // 10 second timeout
+              },
+              (response) => {
+                let responseBody = '';
+
+                response.on('data', (chunk) => {
+                  responseBody += chunk;
+                });
+
+                response.on('end', () => {
+                  if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+                    try {
+                      const parsed = JSON.parse(responseBody);
+                      resolve(parsed);
+                    } catch (err) {
+                      reject(new Error(`Failed to parse JSON: ${err}`));
+                    }
+                  } else {
+                    reject(new Error(`HTTP ${response.statusCode}: ${responseBody}`));
+                  }
+                });
+              }
+            );
+
+            request.on('error', (err) => {
+              reject(err);
+            });
+
+            request.on('timeout', () => {
+              request.destroy();
+              reject(new Error('Request timeout after 10 seconds'));
+            });
+
+            if (body) {
+              request.write(body);
+            }
+
+            request.end();
           });
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[n8n-trend] REST API error ${response.status}:`, errorText);
-            throw new Error(`Supabase API error: ${response.status} - ${errorText}`);
-          }
-
-          return response;
+          return result;
         } catch (err) {
-          console.error(`[n8n-trend] REST API attempt ${attempt + 1} failed:`, err);
+          console.error(`[n8n-trend] HTTPS attempt ${attempt + 1} failed:`, err);
 
           // If last attempt, throw error
           if (attempt === retries) {
@@ -175,16 +203,23 @@ export default async function handler(
 
     // 4. Check for duplicates (by sourceId)
     try {
-      const duplicateCheckEndpoint = `/trend_proposals?source_id=eq.${encodeURIComponent(payload.sourceId)}&source=eq.hackernews&select=id,status`;
+      const duplicateCheckUrl = new URL(
+        `/rest/v1/trend_proposals?source_id=eq.${encodeURIComponent(payload.sourceId)}&source=eq.hackernews&select=id,status`,
+        supabaseUrl
+      );
 
-      const response = await supabaseRestCall(duplicateCheckEndpoint, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/vnd.pgrst.object+json' // Return single object or null
+      const existing = await httpsRequest(
+        duplicateCheckUrl,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseServiceKey,
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/vnd.pgrst.object+json' // Return single object or null
+          }
         }
-      });
-
-      const existing = await response.json();
+      );
 
       // If we got a result, trend already exists
       if (existing && existing.id) {
@@ -246,15 +281,22 @@ export default async function handler(
     };
 
     try {
-      const response = await supabaseRestCall('/trend_proposals', {
-        method: 'POST',
-        headers: {
-          'Prefer': 'return=representation' // Return created object
-        },
-        body: JSON.stringify(proposalData)
-      });
+      const insertUrl = new URL('/rest/v1/trend_proposals', supabaseUrl);
 
-      const createdProposals = await response.json();
+      const createdProposals = await httpsRequest(
+        insertUrl,
+        {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseServiceKey,
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation' // Return created object
+          }
+        },
+        JSON.stringify(proposalData)
+      );
+
       const trendProposal = Array.isArray(createdProposals) ? createdProposals[0] : createdProposals;
 
       if (!trendProposal || !trendProposal.id) {
