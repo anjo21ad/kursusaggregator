@@ -289,39 +289,43 @@ export default function AdminProposalsPage() {
                   </div>
 
                   <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="text-dark-text-secondary">Relevance Score:</span>
-                      <span className="ml-2 text-white font-medium">
-                        {Math.round(proposal.aiCourseProposal.relevanceScore)}%
-                      </span>
-                      <div className="mt-1 h-2 bg-dark-card rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-primary to-secondary"
-                          style={{
-                            width: `${proposal.aiCourseProposal.relevanceScore}%`,
-                          }}
-                        />
+                    {proposal.aiCourseProposal.relevanceScore !== undefined && (
+                      <div>
+                        <span className="text-dark-text-secondary">Relevance Score:</span>
+                        <span className="ml-2 text-white font-medium">
+                          {Math.round(proposal.aiCourseProposal.relevanceScore)}%
+                        </span>
+                        <div className="mt-1 h-2 bg-dark-card rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-primary to-secondary"
+                            style={{
+                              width: `${proposal.aiCourseProposal.relevanceScore}%`,
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div>
                       <span className="text-dark-text-secondary">Foreslået Kursus Titel:</span>
                       <p className="text-white font-medium mt-1">
-                        {proposal.aiCourseProposal.suggestedCourseTitle}
+                        {proposal.aiCourseProposal.suggestedCourseTitle || (proposal.aiCourseProposal as any).suggestedTitle || 'N/A'}
                       </p>
                     </div>
 
-                    <div>
-                      <span className="text-dark-text-secondary">Beskrivelse:</span>
-                      <p className="text-white mt-1">
-                        {proposal.aiCourseProposal.suggestedDescription}
-                      </p>
-                    </div>
+                    {(proposal.aiCourseProposal.suggestedDescription || proposal.description) && (
+                      <div>
+                        <span className="text-dark-text-secondary">Beskrivelse:</span>
+                        <p className="text-white mt-1">
+                          {proposal.aiCourseProposal.suggestedDescription || proposal.description}
+                        </p>
+                      </div>
+                    )}
 
                     <div>
                       <span className="text-dark-text-secondary">Keywords:</span>
                       <div className="flex flex-wrap gap-2 mt-1">
-                        {proposal.aiCourseProposal.keywords.map((keyword, idx) => (
+                        {(proposal.aiCourseProposal.keywords || (proposal.aiCourseProposal as any).keyTopics || []).map((keyword: string, idx: number) => (
                           <span
                             key={idx}
                             className="px-2 py-1 bg-primary/20 text-primary text-xs rounded"
