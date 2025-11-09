@@ -1,0 +1,551 @@
+{
+  "name": "CourseHub - Content Generation Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-content",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "id": "webhook-trigger",
+      "webhookId": "content-gen-webhook",
+      "notes": "Receives: { proposalId: uuid, courseId: number }"
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/trend_proposals",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{$json.body.proposalId}}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "name": "Fetch Proposal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300],
+      "id": "fetch-proposal",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase-auth",
+          "name": "Supabase Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/courses",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{$json.body.courseId}}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "name": "Fetch Course",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 500],
+      "id": "fetch-course",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase-auth",
+          "name": "Supabase Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const proposal = $input.first().json[0];\nconst course = $input.all()[1].json[0];\n\nif (!course.curriculumJson) {\n  throw new Error('Course must have curriculum generated first');\n}\n\nif (!course.curriculumJson.sections || course.curriculumJson.sections.length === 0) {\n  throw new Error('Curriculum must have sections');\n}\n\nreturn {\n  proposalId: proposal.id,\n  courseId: course.id,\n  courseTitle: course.title,\n  courseDescription: course.description,\n  courseLevel: course.level || 'INTERMEDIATE',\n  curriculum: course.curriculumJson,\n  sections: course.curriculumJson.sections,\n  generationStartTime: Date.now()\n};"
+      },
+      "name": "Validate & Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400],
+      "id": "validate-prepare",
+      "notes": "Validate curriculum exists and prepare data"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Loop Sections",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [850, 400],
+      "id": "loop-sections",
+      "notes": "Process one section at a time"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item(0);\nconst section = item.json.sections[$node['Loop Sections'].context.currentItem];\nconst courseData = item.json;\n\nreturn {\n  ...courseData,\n  currentSection: section,\n  sectionIndex: $node['Loop Sections'].context.currentItem\n};"
+      },
+      "name": "Extract Section",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400],
+      "id": "extract-section"
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-20250514"
+            },
+            {
+              "name": "max_tokens",
+              "value": 4000
+            },
+            {
+              "name": "temperature",
+              "value": 0.4
+            },
+            {
+              "name": "system",
+              "value": "Du er en ekspert tech-uddannelses indholdsproducent. Din opgave er at generere detaljeret, engagerende lektionsindhold til online tech-kurser på dansk.\n\nRETNINGSLINJER:\n- Skriv klart og pædagogisk (som om du forklarer til en kollega)\n- Brug konkrete eksempler og virkelige use cases\n- Inkluder kodeeksempler hvor relevant (med forklaringer)\n- Strukturer indhold i afsnit, lister, og callouts\n- Undgå fluff - vær præcis og actionable\n- Sprog: Dansk (code comments i engelsk)\n\nOUTPUT FORMAT: JSON med følgende struktur:\n{\n  \"introduction\": \"100-200 ord introduktion...\",\n  \"blocks\": [\n    {\n      \"type\": \"paragraph|heading|list|callout\",\n      \"content\": \"...\",\n      \"subItems\": [\"...\"],\n      \"calloutType\": \"info|warning|tip|example\",\n      \"heading\": \"h3|h4\"\n    }\n  ],\n  \"codeExamples\": [\n    {\n      \"title\": \"...\",\n      \"description\": \"...\",\n      \"language\": \"typescript|python|javascript|...\",\n      \"code\": \"...\",\n      \"explanation\": \"...\"\n    }\n  ],\n  \"summary\": \"50-100 ord opsummering...\",\n  \"keyTakeaways\": [\"takeaway 1\", \"takeaway 2\", \"takeaway 3\"]\n}\n\nGenerer ALTID valid JSON. Ingen markdown code blocks - kun ren JSON."
+            },
+            {
+              "name": "messages",
+              "value": "=[{\n  \"role\": \"user\",\n  \"content\": `Generer detaljeret lektionsindhold til følgende section:\n\nCOURSE CONTEXT:\n- Course Title: ${$json.courseTitle}\n- Course Level: ${$json.courseLevel}\n- Course Description: ${$json.courseDescription}\n\nSECTION INFO:\n- Section Number: ${$json.currentSection.sectionNumber}\n- Section Title: ${$json.currentSection.title}\n- Section Description: ${$json.currentSection.description}\n- Learning Objectives: ${JSON.stringify($json.currentSection.learningObjectives)}\n- Topics to Cover: ${JSON.stringify($json.currentSection.topics)}\n- Estimated Duration: ${$json.currentSection.estimatedMinutes} minutter\n\nREQUIREMENTS:\n1. Skriv 500-800 ord hovedindhold fordelt på blocks\n2. Inkluder 1-3 kodeeksempler hvis relevant til emnet (kun hvis teknisk topic - ellers 0 kodeeksempler)\n3. Brug callouts til at fremhæve vigtige points\n4. End med 3-5 key takeaways\n\nGenerer JSON output nu (INGEN markdown code blocks - kun ren JSON).`\n}]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Generate Section Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 300],
+      "id": "generate-content",
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-api-credentials",
+          "name": "Anthropic API"
+        }
+      },
+      "notes": "Generate detailed lesson content with Claude"
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-20250514"
+            },
+            {
+              "name": "max_tokens",
+              "value": 2000
+            },
+            {
+              "name": "temperature",
+              "value": 0.3
+            },
+            {
+              "name": "system",
+              "value": "Du er en ekspert i at designe effektive quiz-spørgsmål til tech-uddannelser. Din opgave er at generere multiple choice spørgsmål der REELT tester forståelse (ikke kun hukommelse).\n\nRETNINGSLINJER:\n- Skriv spørgsmål der tester FORSTÅELSE, ikke kun facts\n- Multiple choice med 4 svarmuligheder\n- Præcise forklaringer på hvorfor svaret er korrekt\n- Mix af difficulty levels (easy/medium/hard)\n- Undgå trick questions - vær fair men udfordrende\n- Sprog: Dansk\n\nOUTPUT FORMAT: JSON med følgende struktur:\n{\n  \"questions\": [\n    {\n      \"questionNumber\": 1,\n      \"question\": \"Spørgsmålet her?\",\n      \"options\": [\"Option A\", \"Option B\", \"Option C\", \"Option D\"],\n      \"correctAnswerIndex\": 2,\n      \"explanation\": \"Forklaring på hvorfor dette er korrekt...\",\n      \"difficulty\": \"easy|medium|hard\"\n    }\n  ]\n}\n\nGenerer ALTID valid JSON. Ingen markdown code blocks - kun ren JSON."
+            },
+            {
+              "name": "messages",
+              "value": "=[{\n  \"role\": \"user\",\n  \"content\": `Generer quiz spørgsmål til følgende section:\n\nSECTION INFO:\n- Section Title: ${$json.currentSection.title}\n- Learning Objectives: ${JSON.stringify($json.currentSection.learningObjectives)}\n- Topics Covered: ${JSON.stringify($json.currentSection.topics)}\n\nREQUIREMENTS:\n1. Generer 3-5 spørgsmål\n2. Mix af difficulty: 1-2 easy, 2-3 medium, 0-1 hard\n3. Test forståelse af kernekoncepter fra learning objectives\n4. Hver forklaring skal være 50-100 ord\n\nGenerer JSON output nu (INGEN markdown code blocks - kun ren JSON).`\n}]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Generate Section Quiz",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 500],
+      "id": "generate-quiz",
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-api-credentials",
+          "name": "Anthropic API"
+        }
+      },
+      "notes": "Generate quiz questions with Claude"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst baseData = items[0].json;\nconst contentResponse = items[0].json.content[0].text;\nconst quizResponse = items[1].json.content[0].text;\n\n// Parse AI responses (handle markdown code blocks)\nfunction parseJSON(text) {\n  try {\n    // Try direct parse first\n    return JSON.parse(text);\n  } catch (e) {\n    // Extract from markdown code block\n    const jsonMatch = text.match(/```json\\s*([\\s\\S]*?)\\s*```/) || \n                      text.match(/```\\s*([\\s\\S]*?)\\s*```/) ||\n                      text.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      const jsonStr = jsonMatch[1] || jsonMatch[0];\n      return JSON.parse(jsonStr);\n    }\n    throw new Error('Could not extract JSON from response');\n  }\n}\n\nconst content = parseJSON(contentResponse);\nconst quiz = parseJSON(quizResponse);\n\n// Calculate costs (approximate based on Claude Sonnet 4 pricing)\n// Input: $3/M tokens, Output: $15/M tokens\nconst contentCost = (items[0].json.usage?.input_tokens || 0) * 0.000003 + \n                     (items[0].json.usage?.output_tokens || 0) * 0.000015;\nconst quizCost = (items[1].json.usage?.input_tokens || 0) * 0.000003 + \n                  (items[1].json.usage?.output_tokens || 0) * 0.000015;\n\n// Merge into extended section\nconst extendedSection = {\n  // Original outline fields\n  sectionNumber: baseData.currentSection.sectionNumber,\n  title: baseData.currentSection.title,\n  description: baseData.currentSection.description,\n  learningObjectives: baseData.currentSection.learningObjectives,\n  estimatedMinutes: baseData.currentSection.estimatedMinutes,\n  topics: baseData.currentSection.topics,\n  \n  // NEW: Generated content\n  content: {\n    introduction: content.introduction,\n    blocks: content.blocks,\n    summary: content.summary,\n    keyTakeaways: content.keyTakeaways\n  },\n  \n  // NEW: Code examples (if any)\n  codeExamples: content.codeExamples || [],\n  \n  // NEW: Quiz\n  quiz: {\n    questions: quiz.questions\n  },\n  \n  // Metadata\n  contentGeneratedAt: new Date().toISOString(),\n  contentGenerationCostUsd: contentCost + quizCost\n};\n\nreturn {\n  ...baseData,\n  extendedSection,\n  sectionGenerationCost: contentCost + quizCost\n};"
+      },
+      "name": "Merge Section Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 400],
+      "id": "merge-section",
+      "notes": "Combine outline + content + quiz"
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition",
+        "options": {}
+      },
+      "name": "Merge Responses",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1450, 400],
+      "id": "merge-responses"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Accumulate all extended sections\nconst items = $input.all();\n\nif (!$node['Loop Sections'].context.noItemsLeft) {\n  // Still looping - just pass through\n  return items[0].json;\n}\n\n// All sections processed - assemble complete course\nconst baseData = items[0].json;\nconst extendedSections = [];\nlet totalGenerationCost = 0;\n\n// Collect all extended sections\nfor (const item of items) {\n  if (item.json.extendedSection) {\n    extendedSections.push(item.json.extendedSection);\n    totalGenerationCost += item.json.sectionGenerationCost || 0;\n  }\n}\n\n// Build complete extended curriculum\nconst extendedCurriculum = {\n  courseTitle: baseData.courseTitle,\n  courseDescription: baseData.courseDescription,\n  estimatedDuration: baseData.curriculum.estimatedDuration,\n  level: baseData.courseLevel,\n  sections: extendedSections,\n  metadata: {\n    totalSections: extendedSections.length,\n    totalQuizQuestions: extendedSections.reduce((sum, s) => sum + s.quiz.questions.length, 0),\n    generatedAt: new Date().toISOString(),\n    generationCostUsd: totalGenerationCost,\n    generationTimeSeconds: Math.round((Date.now() - baseData.generationStartTime) / 1000)\n  }\n};\n\nreturn {\n  proposalId: baseData.proposalId,\n  courseId: baseData.courseId,\n  extendedCurriculum,\n  totalGenerationCost,\n  generationTimeSeconds: Math.round((Date.now() - baseData.generationStartTime) / 1000)\n};"
+      },
+      "name": "Assemble Complete Course",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 400],
+      "id": "assemble-course",
+      "notes": "Build final ExtendedCourseCurriculum"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/courses",
+        "authentication": "headerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{$json.courseId}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "curriculumJson",
+              "value": "={{JSON.stringify($json.extendedCurriculum)}}"
+            },
+            {
+              "name": "status",
+              "value": "PUBLISHED"
+            },
+            {
+              "name": "publishedAt",
+              "value": "={{new Date().toISOString()}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1850, 400],
+      "id": "save-database",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase-auth",
+          "name": "Supabase Auth"
+        }
+      },
+      "notes": "Update Course with complete content"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/trend_proposals",
+        "authentication": "headerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{$json.proposalId}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "PUBLISHED"
+            },
+            {
+              "name": "actualGenerationCostUsd",
+              "value": "={{$json.totalGenerationCost}}"
+            },
+            {
+              "name": "actualGenerationTimeMinutes",
+              "value": "={{Math.round($json.generationTimeSeconds / 60)}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Update Proposal Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2050, 400],
+      "id": "update-proposal",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "supabase-auth",
+          "name": "Supabase Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Content generated successfully', courseId: $json.courseId, cost: $json.totalGenerationCost, timeSeconds: $json.generationTimeSeconds } }}"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2250, 400],
+      "id": "respond-webhook"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Proposal",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Course",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Proposal": {
+      "main": [
+        [
+          {
+            "node": "Validate & Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Course": {
+      "main": [
+        [
+          {
+            "node": "Validate & Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Prepare": {
+      "main": [
+        [
+          {
+            "node": "Loop Sections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Sections": {
+      "main": [
+        [
+          {
+            "node": "Extract Section",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Section": {
+      "main": [
+        [
+          {
+            "node": "Generate Section Content",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Section Quiz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Section Content": {
+      "main": [
+        [
+          {
+            "node": "Merge Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Section Quiz": {
+      "main": [
+        [
+          {
+            "node": "Merge Responses",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Responses": {
+      "main": [
+        [
+          {
+            "node": "Merge Section Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Section Data": {
+      "main": [
+        [
+          {
+            "node": "Loop Sections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Sections (complete)": {
+      "main": [
+        [
+          {
+            "node": "Assemble Complete Course",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Complete Course": {
+      "main": [
+        [
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Database": {
+      "main": [
+        [
+          {
+            "node": "Update Proposal Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Proposal Status": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-11-09T10:00:00.000Z",
+      "updatedAt": "2025-11-09T10:00:00.000Z",
+      "id": "content-generation",
+      "name": "Content Generation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-11-09T10:00:00.000Z",
+  "versionId": "1"
+}

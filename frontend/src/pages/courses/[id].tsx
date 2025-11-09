@@ -185,10 +185,15 @@ export default function CoursePage({ course }: Props) {
                     <p className="mb-4">🎓 Du har adgang til dette kursus!</p>
                     <div className="bg-success/10 border border-success/20 rounded-xl p-6">
                       <p className="text-success font-medium mb-2">Velkommen til kurset</p>
-                      <p className="text-text-muted text-sm">
-                        Her vil kursusindholdet være tilgængeligt. Dette kunne omfatte videoer,
-                        materialer, opgaver og quizzer.
+                      <p className="text-text-muted text-sm mb-4">
+                        Kurset er klar til at blive gennemført. Klik på knappen nedenfor for at starte din læring.
                       </p>
+                      <Link
+                        href={`/courses/${course.id}/learn`}
+                        className="inline-block px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-all"
+                      >
+                        Start kursus →
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -262,12 +267,12 @@ export default function CoursePage({ course }: Props) {
                         <span className="font-semibold">Du ejer dette kursus</span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                      className="w-full px-6 py-4 bg-primary rounded-xl text-white hover:bg-primary-dark transition-colors font-semibold text-center"
+                    <Link
+                      href={`/courses/${course.id}/learn`}
+                      className="block w-full px-6 py-4 bg-primary rounded-xl text-white hover:bg-primary-dark transition-colors font-semibold text-center"
                     >
-                      Se kursusindhold
-                    </button>
+                      Start kursus →
+                    </Link>
                     <Link
                       href="/my-courses"
                       className="block w-full px-6 py-3 bg-card border border-secondary text-secondary hover:bg-secondary hover:text-white rounded-xl transition-colors font-semibold text-center"

@@ -130,15 +130,78 @@ export default async function handler(
 
     console.log(`[admin/approve] ✅ Approved proposal: ${id}`);
 
-    // TODO Phase 2: Trigger course generation here
-    // await triggerCourseGeneration(id);
+    // Step 1: Generate curriculum outline (creates Course record)
+    console.log('[admin/approve] Triggering curriculum generation...');
+
+    const generateCourseResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/admin/generate-course/${id}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!generateCourseResponse.ok) {
+      const errorData = await generateCourseResponse.json().catch(() => ({}));
+      console.error('[admin/approve] Curriculum generation failed:', errorData);
+
+      return res.status(500).json({
+        success: false,
+        error: `Curriculum generation failed: ${errorData.error || 'Unknown error'}`
+      });
+    }
+
+    const courseData = await generateCourseResponse.json();
+    const courseId = courseData.data?.courseId;
+
+    if (!courseId) {
+      console.error('[admin/approve] No courseId returned from curriculum generation');
+      return res.status(500).json({
+        success: false,
+        error: 'Curriculum generation did not return courseId'
+      });
+    }
+
+    console.log(`[admin/approve] ✅ Curriculum generated, courseId: ${courseId}`);
+
+    // Step 2: Trigger n8n content generation workflow
+    console.log('[admin/approve] Triggering content generation workflow...');
+
+    const contentGenerationResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/webhooks/n8n-generate-content`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          proposalId: id,
+          courseId: parseInt(courseId, 10),
+        }),
+      }
+    );
+
+    if (!contentGenerationResponse.ok) {
+      const errorData = await contentGenerationResponse.json().catch(() => ({}));
+      console.error('[admin/approve] Content generation workflow trigger failed:', errorData);
+
+      // Don't fail the entire request - curriculum is already generated
+      // Content generation can be retried manually
+      console.warn('[admin/approve] ⚠️ Content generation failed, but curriculum exists');
+    } else {
+      console.log('[admin/approve] ✅ Content generation workflow triggered');
+    }
 
     return res.status(200).json({
       success: true,
-      message: 'Proposal approved successfully',
+      message: 'Proposal approved and course generation started',
       data: {
         id: updatedProposal.id,
-        status: updatedProposal.status
+        status: updatedProposal.status,
+        courseId: courseId,
       }
     });
   } catch (error) {
