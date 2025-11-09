@@ -207,19 +207,27 @@ export default function CoursePage({ course }: Props) {
                   <div>
                     <h3 className="font-semibold text-text-light mb-1">Udbyder</h3>
                     <p className="text-text-muted">
-                      {course.provider.companyName}
-                      {course.provider.website && (
+                      {course.provider ? (
                         <>
-                          {' - '}
-                          <a
-                            href={course.provider.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-accent hover:underline"
-                          >
-                            Besøg hjemmeside
-                          </a>
+                          {course.provider.companyName}
+                          {course.provider.website && (
+                            <>
+                              {' - '}
+                              <a
+                                href={course.provider.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-accent hover:underline"
+                              >
+                                Besøg hjemmeside
+                              </a>
+                            </>
+                          )}
                         </>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          🤖 AI-genereret kursus af CourseHub
+                        </span>
                       )}
                     </p>
                   </div>
