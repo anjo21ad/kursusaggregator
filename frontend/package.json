@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "setup:n8n": "ts-node --project tsconfig.scripts.json scripts/setup-n8n-workflow.ts"
+    "setup:n8n": "ts-node --project tsconfig.scripts.json scripts/setup-n8n-workflow.ts",
+    "n8n:diagnose": "ts-node --project tsconfig.scripts.json scripts/n8n-diagnostics-and-fix.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.67.0",
