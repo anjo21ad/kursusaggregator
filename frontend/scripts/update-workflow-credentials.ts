@@ -43,9 +43,17 @@ async function getWorkflowDetails(workflowId: string) {
 }
 
 async function updateWorkflow(workflowId: string, workflowData: any) {
+  // Clean workflow data - include all required fields
+  const workflow = {
+    name: workflowData.name || 'CourseHub - Content Generation Pipeline',
+    nodes: workflowData.nodes,
+    connections: workflowData.connections,
+    settings: workflowData.settings || { executionOrder: 'v1' }
+  };
+
   const result = await n8nRequest(`/api/v1/workflows/${workflowId}`, {
     method: 'PUT',
-    body: JSON.stringify(workflowData)
+    body: JSON.stringify(workflow)
   });
   return result.data || result;
 }
