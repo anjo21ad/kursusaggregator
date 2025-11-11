@@ -1,7 +1,8 @@
 /**
- * n8n Workflow Loop Connections Fix
+ * n8n Workflow Loop Batch Size Fix
  *
- * Fixes the Loop Sections node connections to ensure proper iteration
+ * Adds missing batchSize parameter to Loop Sections (Split in Batches) node
+ * This is THE CRITICAL FIX needed for loop iteration to work
  */
 
 const N8N_HOST = 'https://n8n-production-30ce.up.railway.app';
@@ -52,8 +53,8 @@ async function fetchWorkflow(): Promise<N8nWorkflow> {
   return workflow;
 }
 
-function fixLoopConnections(workflow: N8nWorkflow): { fixed: boolean; changes: string[] } {
-  console.log('\n🔍 Analyzing Loop Sections connections...\n');
+function fixLoopBatchSize(workflow: N8nWorkflow): { fixed: boolean; changes: string[] } {
+  console.log('\n🔍 Analyzing Loop Sections batch size...\n');
 
   const changes: string[] = [];
 
@@ -65,82 +66,26 @@ function fixLoopConnections(workflow: N8nWorkflow): { fixed: boolean; changes: s
   }
 
   console.log(`✅ Found Loop Sections node`);
+  console.log(`   Current parameters: ${JSON.stringify(loopNode.parameters, null, 2)}`);
 
-  // Get or initialize connections for Loop Sections
-  if (!workflow.connections['Loop Sections']) {
-    workflow.connections['Loop Sections'] = { main: [[], []] };
+  // Check if batchSize is set
+  const currentBatchSize = loopNode.parameters?.batchSize;
+
+  if (currentBatchSize === 1) {
+    console.log(`   ✅ Batch size is already set to 1`);
+    return { fixed: true, changes: [] };
   }
 
-  const loopConnections = workflow.connections['Loop Sections'];
-  if (!loopConnections.main) {
-    loopConnections.main = [[], []];
+  // Add batchSize parameter
+  console.log(`   🔧 Adding batchSize parameter (value: 1)`);
+
+  if (!loopNode.parameters) {
+    loopNode.parameters = {};
   }
 
-  // Ensure we have arrays for both outputs
-  if (!loopConnections.main[0]) loopConnections.main[0] = [];
-  if (!loopConnections.main[1]) loopConnections.main[1] = [];
-
-  // Output 0 (loop) should connect to Extract Section
-  const output0 = loopConnections.main[0];
-  const hasExtractConnection = output0.some(conn => conn.node === 'Extract Section');
-
-  if (!hasExtractConnection) {
-    console.log(`   🔧 Adding connection: Loop Sections (output 0) → Extract Section`);
-    output0.push({
-      node: 'Extract Section',
-      type: 'main',
-      index: 0
-    });
-    changes.push('Connected Loop Sections output 0 (loop) to Extract Section');
-  } else {
-    console.log(`   ✅ Loop output already connected to Extract Section`);
-  }
-
-  // Output 1 (done) should connect to Assemble Complete Course
-  const output1 = loopConnections.main[1];
-  const hasAssembleConnection = output1.some(conn => conn.node === 'Assemble Complete Course');
-
-  if (!hasAssembleConnection) {
-    console.log(`   🔧 Adding connection: Loop Sections (output 1) → Assemble Complete Course`);
-    output1.push({
-      node: 'Assemble Complete Course',
-      type: 'main',
-      index: 0
-    });
-    changes.push('Connected Loop Sections output 1 (done) to Assemble Complete Course');
-  } else {
-    console.log(`   ✅ Done output already connected to Assemble Complete Course`);
-  }
-
-  // Verify loop-back connection from Merge Section Data
-  const mergeConnections = workflow.connections['Merge Section Data'];
-  if (!mergeConnections || !mergeConnections.main || !mergeConnections.main[0]) {
-    console.log(`   ⚠️  WARNING: Merge Section Data has no connections`);
-    if (!workflow.connections['Merge Section Data']) {
-      workflow.connections['Merge Section Data'] = { main: [[]] };
-    }
-    if (!workflow.connections['Merge Section Data'].main) {
-      workflow.connections['Merge Section Data'].main = [[]];
-    }
-    if (!workflow.connections['Merge Section Data'].main[0]) {
-      workflow.connections['Merge Section Data'].main[0] = [];
-    }
-  }
-
-  const mergeOutput = workflow.connections['Merge Section Data']?.main?.[0] || [];
-  const hasLoopBack = mergeOutput.some(conn => conn.node === 'Loop Sections');
-
-  if (!hasLoopBack) {
-    console.log(`   🔧 Adding loop-back connection: Merge Section Data → Loop Sections`);
-    workflow.connections['Merge Section Data'].main![0].push({
-      node: 'Loop Sections',
-      type: 'main',
-      index: 0
-    });
-    changes.push('Connected Merge Section Data back to Loop Sections');
-  } else {
-    console.log(`   ✅ Loop-back connection already present`);
-  }
+  loopNode.parameters.batchSize = 1;
+  changes.push('Added batchSize: 1 to Loop Sections node');
+  console.log(`   ✅ Loop Sections batch size configured`);
 
   console.log(`\n📊 Summary:`);
   console.log(`   Changes made: ${changes.length}`);
@@ -180,7 +125,7 @@ async function updateWorkflow(workflow: N8nWorkflow): Promise<void> {
 }
 
 async function main() {
-  console.log('🚀 n8n Loop Connections Fix Script\n');
+  console.log('🚀 n8n Loop Batch Size Fix Script\n');
   console.log(`Workflow ID: ${WORKFLOW_ID}`);
   console.log(`n8n Host: ${N8N_HOST}\n`);
   console.log('─'.repeat(60));
@@ -190,15 +135,15 @@ async function main() {
     const workflow = await fetchWorkflow();
 
     // Step 2: Save backup
-    const backupPath = `workflow-backup-loop-${Date.now()}.json`;
+    const backupPath = `workflow-backup-batch-size-${Date.now()}.json`;
     const fs = require('fs');
     const path = require('path');
     const fullPath = path.join(process.cwd(), 'scripts', backupPath);
     fs.writeFileSync(fullPath, JSON.stringify(workflow, null, 2));
     console.log(`\n💾 Backup saved to: scripts/${backupPath}`);
 
-    // Step 3: Fix loop connections
-    const result = fixLoopConnections(workflow);
+    // Step 3: Fix batch size
+    const result = fixLoopBatchSize(workflow);
 
     if (!result.fixed) {
       console.log('\n❌ Could not fix workflow automatically');
@@ -207,7 +152,7 @@ async function main() {
     }
 
     if (result.changes.length === 0) {
-      console.log('\n✨ Loop connections are already configured correctly!');
+      console.log('\n✨ Batch size is already configured correctly!');
       console.log('No changes needed.');
       return;
     }
@@ -216,17 +161,22 @@ async function main() {
     await updateWorkflow(workflow);
 
     console.log('\n─'.repeat(60));
-    console.log('✅ SUCCESS! Loop connections have been fixed.\n');
-    console.log('The loop should now iterate through all 5 sections.');
+    console.log('✅ SUCCESS! Loop batch size has been fixed.\n');
+    console.log('🎯 THIS WAS THE CRITICAL MISSING CONFIGURATION!\n');
+    console.log('The Split in Batches node now knows to process 1 item at a time.');
     console.log('Expected behavior:');
-    console.log('  - Loop Sections sends each section to Extract Section');
-    console.log('  - Each section gets AI content and quiz generated');
-    console.log('  - Merge Section Data loops back to Loop Sections');
-    console.log('  - After all sections, Loop goes to Done Branch\n');
+    console.log('  - Loop Sections receives 5 items from Validate & Prepare');
+    console.log('  - Loop Sections sends section 1 → Extract Section processes it');
+    console.log('  - After AI generation, loop back to Loop Sections');
+    console.log('  - Loop Sections sends section 2 → Extract Section processes it');
+    console.log('  - This repeats for all 5 sections');
+    console.log('  - After section 5, workflow goes to Done Branch\n');
     console.log('Test the workflow now:');
     console.log('  curl -X POST "https://n8n-production-30ce.up.railway.app/webhook/generate-content" \\');
     console.log('    -H "Content-Type: application/json" \\');
     console.log('    -d \'{"proposalId": "c3b74454-50a4-40d1-aa61-b66c4dea5043", "courseId": 1}\'');
+    console.log('');
+    console.log('Expected execution time: 5-15 minutes (for AI generation)');
     console.log('');
 
   } catch (error) {
