@@ -1,0 +1,253 @@
+{
+  "name": "Azure Course Trend Scraper (Fixed)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Daily 06:00 CET",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -720,
+        256
+      ],
+      "id": "schedule-trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://kursusaggregator.vercel.app/api/azure-articles",
+        "options": {}
+      },
+      "name": "Fetch Azure Articles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -496,
+        256
+      ],
+      "id": "fetch-azure"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Take first 3 articles for testing (to avoid hitting rate limits)\nconst response = $input.first().json;\nconst articles = response.articles || [];\n\n// Take first 3 articles\nconst selectedArticles = articles.slice(0, 3);\n\nconsole.log(`Processing ${selectedArticles.length} Azure articles`);\n\n// Return each article as separate item\nreturn selectedArticles.map(article => ({\n  json: article\n}));"
+      },
+      "name": "Limit to Top 3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        256
+      ],
+      "id": "limit-articles"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $credentials.anthropicApi.apiKey }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5-20250929\",\n  \"max_tokens\": 2048,\n  \"temperature\": 0.3,\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": \"Analyze this Azure topic for tech course potential:\\n\\nTitle: {{ $json.title }}\\nDescription: {{ $json.description }}\\nURL: {{ $json.url }}\\nKeywords: {{ $json.keywords.join(', ') }}\\n\\nProvide analysis in this JSON format:\\n{\\n  \\\"relevanceScore\\\": <0-100>,\\n  \\\"suggestedCourseTitle\\\": \\\"...\\\",\\n  \\\"suggestedDescription\\\": \\\"...\\\",\\n  \\\"keywords\\\": [\\\"...\\\"],\\n  \\\"estimatedDurationMinutes\\\": <number>,\\n  \\\"estimatedGenerationCostUsd\\\": <number>,\\n  \\\"keyTopics\\\": [\\\"...\\\"]\\n}\\n\\nAzure courses are highly relevant for enterprise tech education. Score 80+ for core Azure services.\"\n  }]\n}",
+        "options": {}
+      },
+      "name": "AI Analysis (Claude)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -48,
+        256
+      ],
+      "id": "ai-analysis",
+      "credentials": {
+        "anthropicApi": {
+          "id": "NSDOJrhBjJCk3YkH",
+          "name": "Anthropic account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response and format for webhook API\nconst items = $input.all();\n\nreturn items.map((item, index) => {\n  const apiResponse = item.json;\n  const originalArticle = $('Limit to Top 3').all()[index].json;\n  \n  // Extract AI response text\n  const aiText = apiResponse.content[0].text;\n  \n  // Parse JSON from AI response\n  let analysis;\n  try {\n    const cleanJson = aiText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n    analysis = JSON.parse(cleanJson);\n  } catch (e) {\n    console.log(`Parse error for item ${index}: ${e.message}`);\n    // Use defaults for parse errors\n    analysis = {\n      relevanceScore: 0,\n      suggestedCourseTitle: originalArticle.title,\n      suggestedDescription: originalArticle.description,\n      keywords: originalArticle.keywords || [],\n      estimatedDurationMinutes: 240,\n      estimatedGenerationCostUsd: 1.0,\n      keyTopics: originalArticle.keywords || []\n    };\n  }\n  \n  // Format for webhook API (matches N8nTrendPayload type)\n  return {\n    json: {\n      // Azure Data (required fields)\n      source: 'azure-docs',\n      sourceId: originalArticle.id,\n      sourceUrl: originalArticle.url,\n      title: originalArticle.title,\n      description: originalArticle.description,\n      keywords: originalArticle.keywords,\n      score: originalArticle.score || 90,\n      author: originalArticle.author || 'Microsoft Azure',\n      time: originalArticle.time || Math.floor(Date.now() / 1000),\n      trendScore: originalArticle.score || 90,\n      \n      // AI Analysis (webhook expects this field for validation)\n      aiAnalysis: {\n        relevanceScore: analysis.relevanceScore || 0,\n        suggestedCourseTitle: analysis.suggestedCourseTitle || originalArticle.title,\n        suggestedDescription: analysis.suggestedDescription || originalArticle.description,\n        keywords: analysis.keywords || originalArticle.keywords || [],\n        estimatedDurationMinutes: analysis.estimatedDurationMinutes || 240,\n        estimatedGenerationCostUsd: analysis.estimatedGenerationCostUsd || 1.0\n      },\n      // Also include aiCourseProposal for compatibility\n      aiCourseProposal: {\n        relevanceScore: analysis.relevanceScore || 0,\n        suggestedCourseTitle: analysis.suggestedCourseTitle || originalArticle.title,\n        suggestedDescription: analysis.suggestedDescription || originalArticle.description,\n        keywords: analysis.keywords || originalArticle.keywords || [],\n        keyTopics: analysis.keyTopics || analysis.keywords || [],\n        estimatedDurationMinutes: analysis.estimatedDurationMinutes || 240\n      },\n      estimatedDurationMinutes: analysis.estimatedDurationMinutes || 240,\n      estimatedGenerationCostUsd: analysis.estimatedGenerationCostUsd || 1.0,\n      estimatedEngagementScore: Math.round(analysis.relevanceScore || 0)\n    }\n  };\n});"
+      },
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        256
+      ],
+      "id": "parse-response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "relevance-filter",
+              "leftValue": "={{ $json.aiAnalysis.relevanceScore }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Filter: Relevance >= 70",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        400,
+        256
+      ],
+      "id": "filter-relevance"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://kursusaggregator.vercel.app/api/webhooks/n8n-trend",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 394640ce0f351b9c65c08bde6e9d3e412e2442ed9ec6f7d7607b2360f0cc9117"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Send to Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        624,
+        256
+      ],
+      "id": "send-webhook"
+    }
+  ],
+  "connections": {
+    "Schedule Daily 06:00 CET": {
+      "main": [
+        [
+          {
+            "node": "Fetch Azure Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Azure Articles": {
+      "main": [
+        [
+          {
+            "node": "Limit to Top 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit to Top 3": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis (Claude)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis (Claude)": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Filter: Relevance >= 70",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Relevance >= 70": {
+      "main": [
+        [
+          {
+            "node": "Send to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "1",
+  "meta": {
+    "instanceId": "n8n-azure-scraper-fixed"
+  },
+  "tags": [
+    {
+      "name": "Production"
+    },
+    {
+      "name": "Azure Scraper"
+    }
+  ]
+}
