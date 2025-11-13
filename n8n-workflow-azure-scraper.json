@@ -1,0 +1,275 @@
+{
+  "name": "Azure Course Trend Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Daily 06:00 CET",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300],
+      "id": "schedule-trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3000/api/azure-articles",
+        "options": {}
+      },
+      "name": "Fetch Azure Articles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300],
+      "id": "fetch-azure-articles",
+      "notes": "Henter Azure-emner fra Next.js API endpoint"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract articles array from API response\nconst response = $input.first().json;\nreturn response.articles;"
+      },
+      "name": "Extract Articles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "id": "extract-articles",
+      "notes": "Udtræk articles array fra API response"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Loop Over Articles",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [850, 300],
+      "id": "loop-articles"
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-sonnet-4-5-20250929"
+            },
+            {
+              "name": "max_tokens",
+              "value": 2048
+            },
+            {
+              "name": "temperature",
+              "value": 0.3
+            },
+            {
+              "name": "messages",
+              "value": "=[{\n  \"role\": \"user\",\n  \"content\": \"Analyze this Azure topic for tech course potential:\\n\\nTitle: {{$json.title}}\\nDescription: {{$json.description}}\\nURL: {{$json.url}}\\nKeywords: {{$json.keywords.join(', ')}}\\n\\nProvide analysis in this JSON format:\\n{\\n  \\\"relevanceScore\\\": <0-100>,\\n  \\\"suggestedCourseTitle\\\": \\\"...\\\",\\n  \\\"suggestedDescription\\\": \\\"...\\\",\\n  \\\"keywords\\\": [\\\"...\\\"],\\n  \\\"estimatedDurationMinutes\\\": <number>,\\n  \\\"estimatedGenerationCostUsd\\\": <number>,\\n  \\\"keyTopics\\\": [\\\"...\\\"]\\n}\\n\\nAzure courses are highly relevant for enterprise tech education. Score 80+ for core Azure services.\"\n}]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "AI Analysis (Claude)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 300],
+      "id": "ai-analysis",
+      "notes": "Analyser Azure-emne med Claude AI",
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-api-credentials",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const articleData = $input.first().json;\nconst aiResponse = articleData.content[0].text;\n\n// Get original article data (from previous node)\nconst originalArticle = items[0].json;\n\n// Parse AI JSON response\nlet aiAnalysis;\ntry {\n  // Extract JSON from markdown code blocks if present\n  const jsonMatch = aiResponse.match(/```json\\n([\\s\\S]*?)\\n```/) || \n                    aiResponse.match(/\\{[\\s\\S]*\\}/);\n  aiAnalysis = JSON.parse(jsonMatch ? jsonMatch[1] || jsonMatch[0] : aiResponse);\n} catch (error) {\n  // Fallback if parsing fails\n  aiAnalysis = {\n    relevanceScore: 95,\n    suggestedCourseTitle: originalArticle.title,\n    suggestedDescription: originalArticle.description,\n    keywords: originalArticle.keywords,\n    estimatedDurationMinutes: 120,\n    estimatedGenerationCostUsd: 2.0,\n    keyTopics: originalArticle.keywords\n  };\n}\n\nreturn {\n  source: 'azure-docs',\n  sourceId: originalArticle.id,\n  sourceUrl: originalArticle.url,\n  title: originalArticle.title,\n  description: originalArticle.description,\n  keywords: originalArticle.keywords,\n  trendScore: originalArticle.score,\n  aiCourseProposal: {\n    relevanceScore: aiAnalysis.relevanceScore,\n    suggestedCourseTitle: aiAnalysis.suggestedCourseTitle,\n    suggestedDescription: aiAnalysis.suggestedDescription,\n    keywords: aiAnalysis.keywords,\n    keyTopics: aiAnalysis.keyTopics || aiAnalysis.keywords,\n    estimatedDurationMinutes: aiAnalysis.estimatedDurationMinutes,\n    hackernewsData: {\n      author: originalArticle.author,\n      time: originalArticle.time,\n      score: originalArticle.score\n    }\n  },\n  estimatedDurationMinutes: aiAnalysis.estimatedDurationMinutes,\n  estimatedGenerationCostUsd: aiAnalysis.estimatedGenerationCostUsd,\n  estimatedEngagementScore: Math.round(aiAnalysis.relevanceScore)\n};"
+      },
+      "name": "Merge Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300],
+      "id": "merge-data",
+      "notes": "Kombiner Azure-data med AI-analyse"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "relevance-filter",
+              "leftValue": "={{$json.aiCourseProposal.relevanceScore}}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Filter: Relevance >= 70",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1450, 300],
+      "id": "relevance-filter",
+      "notes": "Kun proces Azure-emner med relevans >= 70"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.WEBHOOK_URL}}/api/webhooks/n8n-trend",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.WEBHOOK_SECRET}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "",
+              "value": "={{$json}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send to Next.js Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1650, 300],
+      "id": "send-webhook",
+      "notes": "POST Azure trend data til CourseHub API"
+    }
+  ],
+  "connections": {
+    "Schedule Daily 06:00 CET": {
+      "main": [
+        [
+          {
+            "node": "Fetch Azure Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Azure Articles": {
+      "main": [
+        [
+          {
+            "node": "Extract Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Articles": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Articles": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis (Claude)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis (Claude)": {
+      "main": [
+        [
+          {
+            "node": "Merge Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Data": {
+      "main": [
+        [
+          {
+            "node": "Filter: Relevance >= 70",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: Relevance >= 70": {
+      "main": [
+        [
+          {
+            "node": "Send to Next.js Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-11-12T20:00:00.000Z",
+      "updatedAt": "2025-11-12T20:00:00.000Z",
+      "id": "azure-scraper",
+      "name": "Azure Scraper"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-11-12T20:00:00.000Z",
+  "versionId": "1"
+}

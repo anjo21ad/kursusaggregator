@@ -3,13 +3,17 @@ import https from 'https';
 import { randomUUID } from 'crypto';
 
 type N8nTrendPayload = {
+  source?: string; // 'hackernews' | 'azure-docs' | etc
   sourceId: string;
   sourceUrl: string;
   title: string;
+  description?: string;
+  keywords?: string[];
+  trendScore?: number;
   score: number;
   author: string;
   time: number;
-  aiAnalysis: {
+  aiAnalysis?: {
     relevanceScore: number;
     suggestedCourseTitle: string;
     suggestedDescription: string;
@@ -17,6 +21,7 @@ type N8nTrendPayload = {
     estimatedDurationMinutes: number;
     estimatedGenerationCostUsd: number;
   };
+  aiCourseProposal?: any; // For Azure workflow compatibility
 };
 
 type ApiResponse = {
@@ -190,11 +195,12 @@ export default async function handler(
     }
 
     // 4. Check for duplicates
+    const source = payload.source || 'hackernews';
     const findResult = await supabaseRequest(
       supabaseUrl,
       supabaseServiceKey,
       'GET',
-      `/trend_proposals?sourceId=eq.${encodeURIComponent(payload.sourceId)}&source=eq.hackernews&select=id,status`
+      `/trend_proposals?sourceId=eq.${encodeURIComponent(payload.sourceId)}&source=eq.${source}&select=id,status`
     );
 
     if (findResult.statusCode !== 200 && findResult.statusCode !== 404) {
@@ -224,30 +230,34 @@ export default async function handler(
     }
 
     // 5. Create TrendProposal
+    // Support both old format (aiAnalysis) and new format (aiCourseProposal)
+    const aiData = payload.aiCourseProposal || payload.aiAnalysis;
+
     const insertData = {
       id: randomUUID(), // Generate UUID manually for Supabase REST API
-      source: 'hackernews',
+      source: source,
       sourceId: payload.sourceId,
       sourceUrl: payload.sourceUrl,
       title: payload.title,
-      description: payload.aiAnalysis.suggestedDescription || '',
-      keywords: payload.aiAnalysis.keywords || [],
-      trendScore: payload.score || 0,
+      description: payload.description || aiData?.suggestedDescription || '',
+      keywords: payload.keywords || aiData?.keywords || [],
+      trendScore: payload.trendScore || payload.score || 0,
       aiCourseProposal: {
-        relevanceScore: payload.aiAnalysis.relevanceScore,
-        suggestedCourseTitle: payload.aiAnalysis.suggestedCourseTitle,
-        suggestedDescription: payload.aiAnalysis.suggestedDescription,
-        keywords: payload.aiAnalysis.keywords,
-        estimatedDurationMinutes: payload.aiAnalysis.estimatedDurationMinutes,
+        relevanceScore: aiData?.relevanceScore || 0,
+        suggestedCourseTitle: aiData?.suggestedCourseTitle || payload.title,
+        suggestedDescription: aiData?.suggestedDescription || payload.description || '',
+        keywords: aiData?.keywords || payload.keywords || [],
+        keyTopics: aiData?.keyTopics || aiData?.keywords || [],
+        estimatedDurationMinutes: aiData?.estimatedDurationMinutes || 60,
         hackernewsData: {
           author: payload.author,
           time: payload.time,
           score: payload.score
         }
       },
-      estimatedDurationMinutes: payload.aiAnalysis.estimatedDurationMinutes,
-      estimatedGenerationCostUsd: payload.aiAnalysis.estimatedGenerationCostUsd,
-      estimatedEngagementScore: payload.aiAnalysis.relevanceScore,
+      estimatedDurationMinutes: aiData?.estimatedDurationMinutes || 60,
+      estimatedGenerationCostUsd: aiData?.estimatedGenerationCostUsd || 1.0,
+      estimatedEngagementScore: aiData?.relevanceScore || 0,
       status: 'PENDING'
     };
 
