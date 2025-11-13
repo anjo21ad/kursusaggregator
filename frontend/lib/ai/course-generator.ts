@@ -7,8 +7,15 @@
  * Target: <$1 per course, <2 hours generation time
  */
 
-import { generateJSON, CLAUDE_SONNET_4 } from './client';
-import { CURRICULUM_SYSTEM_PROMPT, getCurriculumPrompt } from './prompts';
+import { generateJSON, CLAUDE_SONNET_4, withRetry } from './client';
+import {
+  CURRICULUM_SYSTEM_PROMPT,
+  getCurriculumPrompt,
+  CONTENT_SYSTEM_PROMPT,
+  getSectionContentPrompt,
+  QUIZ_SYSTEM_PROMPT,
+  getSectionQuizPrompt
+} from './prompts';
 import https from 'https';
 
 // ============================================================================
@@ -39,6 +46,51 @@ type CourseSection = {
   topics: string[];
 };
 
+type ContentBlock = {
+  type: 'paragraph' | 'heading' | 'list' | 'callout';
+  content: string;
+  subItems?: string[];
+  calloutType?: 'info' | 'warning' | 'tip' | 'example';
+  heading?: 'h3' | 'h4';
+};
+
+type CodeExample = {
+  title: string;
+  description: string;
+  language: string;
+  code: string;
+  explanation: string;
+};
+
+type SectionContent = {
+  introduction: string;
+  blocks: ContentBlock[];
+  codeExamples: CodeExample[];
+  summary: string;
+  keyTakeaways: string[];
+};
+
+type QuizQuestion = {
+  questionText: string;
+  questionType: 'multiple_choice' | 'true_false' | 'code_completion';
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  codeSnippet?: string;
+};
+
+type SectionQuiz = {
+  questions: QuizQuestion[];
+};
+
+type ExtendedCourseSection = CourseSection & {
+  content: SectionContent;
+  quiz: SectionQuiz;
+  contentGeneratedAt: string;
+  contentGenerationCostUsd: number;
+};
+
 type CourseCurriculum = {
   courseTitle: string;
   courseDescription: string;
@@ -47,12 +99,20 @@ type CourseCurriculum = {
   sections: CourseSection[];
 };
 
+type ExtendedCourseCurriculum = {
+  courseTitle: string;
+  courseDescription: string;
+  estimatedDuration: number;
+  level: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  sections: ExtendedCourseSection[];
+};
+
 type GeneratedCourse = {
   title: string;
   description: string;
   duration: number;
   level: string;
-  curriculumJson: CourseCurriculum;
+  curriculumJson: ExtendedCourseCurriculum;
   totalCost: number;
   generationTimeSeconds: number;
 };
@@ -74,18 +134,85 @@ export async function generateCourseFromProposal(
 
   console.log(`[course-generator] Starting generation for: ${proposal.title}`);
 
-  // Step 1: Generate curriculum
-  console.log('[course-generator] Step 1/1: Generating curriculum...');
+  // Step 1: Generate curriculum (with retry logic)
+  console.log('[course-generator] Step 1/2: Generating curriculum...');
 
-  const curriculum = await generateCurriculum(proposal);
-  totalCost += curriculum.usage.totalCost;
+  let curriculum;
+  try {
+    curriculum = await withRetry(() => generateCurriculum(proposal), 3, 2000);
+    totalCost += curriculum.usage.totalCost;
 
-  console.log('[course-generator] ✅ Curriculum generated');
-  console.log(`[course-generator] - ${curriculum.data.sections.length} sections`);
-  console.log(`[course-generator] - ${curriculum.data.estimatedDuration} minutes total`);
-  console.log(`[course-generator] - Cost so far: $${totalCost.toFixed(4)}`);
+    console.log('[course-generator] ✅ Curriculum generated');
+    console.log(`[course-generator] - ${curriculum.data.sections.length} sections`);
+    console.log(`[course-generator] - ${curriculum.data.estimatedDuration} minutes total`);
+    console.log(`[course-generator] - Cost so far: $${totalCost.toFixed(4)}`);
+  } catch (error) {
+    console.error('[course-generator] ❌ Failed to generate curriculum:', error);
+    throw new Error(
+      `Curriculum generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
 
-  // TODO Phase 2: Generate section content and quizzes
+  // Step 2: Generate content and quiz for each section (with retry logic)
+  console.log('[course-generator] Step 2/2: Generating section content and quizzes...');
+
+  const extendedSections: ExtendedCourseSection[] = [];
+
+  for (let i = 0; i < curriculum.data.sections.length; i++) {
+    const section = curriculum.data.sections[i];
+    const sectionNum = i + 1;
+
+    console.log(`[course-generator] Processing section ${sectionNum}/${curriculum.data.sections.length}: ${section.title}`);
+
+    try {
+      // Generate content with retry logic
+      const content = await withRetry(
+        () => generateSectionContent(
+          curriculum.data.courseTitle,
+          curriculum.data.courseDescription,
+          curriculum.data.level,
+          section
+        ),
+        3, // 3 retries
+        2000 // 2s base delay
+      );
+      totalCost += content.usage.totalCost;
+
+      console.log(`[course-generator]   ✅ Content generated (${content.data.blocks.length} blocks, ${content.data.codeExamples.length} code examples)`);
+
+      // Generate quiz with retry logic
+      const quiz = await withRetry(
+        () => generateSectionQuiz(
+          curriculum.data.courseTitle,
+          curriculum.data.level,
+          section
+        ),
+        3, // 3 retries
+        2000 // 2s base delay
+      );
+      totalCost += quiz.usage.totalCost;
+
+      console.log(`[course-generator]   ✅ Quiz generated (${quiz.data.questions.length} questions)`);
+      console.log(`[course-generator]   Cost for section ${sectionNum}: $${(content.usage.totalCost + quiz.usage.totalCost).toFixed(4)}`);
+
+      // Build extended section
+      extendedSections.push({
+        ...section,
+        content: content.data,
+        quiz: quiz.data,
+        contentGeneratedAt: new Date().toISOString(),
+        contentGenerationCostUsd: content.usage.totalCost + quiz.usage.totalCost,
+      });
+    } catch (error) {
+      console.error(`[course-generator] ❌ Failed to generate section ${sectionNum}:`, error);
+      console.error(`[course-generator] Total cost before failure: $${totalCost.toFixed(4)}`);
+      throw new Error(
+        `Section ${sectionNum} ("${section.title}") generation failed after retries: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
 
   const generationTimeSeconds = Math.round((Date.now() - startTime) / 1000);
 
@@ -93,12 +220,21 @@ export async function generateCourseFromProposal(
   console.log(`[course-generator] Total cost: $${totalCost.toFixed(4)}`);
   console.log(`[course-generator] Generation time: ${generationTimeSeconds}s`);
 
+  // Build extended curriculum
+  const extendedCurriculum: ExtendedCourseCurriculum = {
+    courseTitle: curriculum.data.courseTitle,
+    courseDescription: curriculum.data.courseDescription,
+    estimatedDuration: curriculum.data.estimatedDuration,
+    level: curriculum.data.level,
+    sections: extendedSections,
+  };
+
   return {
     title: curriculum.data.courseTitle,
     description: curriculum.data.courseDescription,
     duration: curriculum.data.estimatedDuration,
     level: curriculum.data.level,
-    curriculumJson: curriculum.data,
+    curriculumJson: extendedCurriculum,
     totalCost,
     generationTimeSeconds,
   };
@@ -121,6 +257,62 @@ async function generateCurriculum(proposal: TrendProposal) {
     userPrompt,
     CLAUDE_SONNET_4, // Model: claude-sonnet-4-20250514
     4000 // Max tokens for curriculum
+  );
+}
+
+/**
+ * Generate section content using Claude AI
+ */
+async function generateSectionContent(
+  courseTitle: string,
+  courseDescription: string,
+  courseLevel: string,
+  section: CourseSection
+) {
+  const systemPrompt = CONTENT_SYSTEM_PROMPT;
+  const userPrompt = getSectionContentPrompt(
+    courseTitle,
+    courseDescription,
+    courseLevel,
+    section.sectionNumber,
+    section.title,
+    section.description,
+    section.learningObjectives,
+    section.topics,
+    section.estimatedMinutes
+  );
+
+  return await generateJSON<SectionContent>(
+    systemPrompt,
+    userPrompt,
+    CLAUDE_SONNET_4,
+    4000 // Max tokens for section content
+  );
+}
+
+/**
+ * Generate section quiz using Claude AI
+ */
+async function generateSectionQuiz(
+  courseTitle: string,
+  courseLevel: string,
+  section: CourseSection
+) {
+  const systemPrompt = QUIZ_SYSTEM_PROMPT;
+  const userPrompt = getSectionQuizPrompt(
+    courseTitle,
+    courseLevel,
+    section.sectionNumber,
+    section.title,
+    section.learningObjectives,
+    section.topics
+  );
+
+  return await generateJSON<SectionQuiz>(
+    systemPrompt,
+    userPrompt,
+    CLAUDE_SONNET_4,
+    2000 // Max tokens for quiz
   );
 }
 
@@ -241,7 +433,7 @@ async function updateProposalStatus(
   };
 
   if (generatedCourseId) {
-    updateData.generatedCourseId = generatedCourseId;
+    updateData.generatedCourseId = String(generatedCourseId);
   }
 
   await new Promise<void>((resolve, reject) => {

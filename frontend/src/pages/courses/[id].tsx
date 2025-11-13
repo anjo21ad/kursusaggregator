@@ -1,12 +1,13 @@
 import { GetServerSideProps } from 'next'
-import { fetchCourseById } from '@/lib/database-adapter'
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { fetchCourseById, checkCourseAccess } from '@/lib/database-adapter'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
-import LoadingSpinner from '@/components/LoadingSpinner'
+import CoursePlayer from '@/components/course/CoursePlayer'
+import { ExtendedCourseCurriculum } from '@/components/course/types'
+import { createClient } from '@/lib/supabase/server'
+import { supabase } from '@/lib/supabase/client'
 
 type Course = {
   id: number
@@ -19,6 +20,7 @@ type Course = {
   location: string | null
   language: string
   level: string | null
+  curriculumJson?: any | null
   provider: {
     companyName: string
     website: string | null
@@ -30,54 +32,12 @@ type Course = {
 
 type Props = {
   course: Course
+  hasAccess: boolean
+  isAuthenticated: boolean
 }
 
-export default function CoursePage({ course }: Props) {
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null)
-  const [isCheckingAccess, setIsCheckingAccess] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+export default function CoursePage({ course, hasAccess, isAuthenticated }: Props) {
   const router = useRouter()
-
-  useEffect(() => {
-    const checkAccess = async () => {
-      setIsCheckingAccess(true)
-      setError(null)
-
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-
-        if (!session) {
-          setIsAuthenticated(false)
-          setHasAccess(false)
-          setIsCheckingAccess(false)
-          return
-        }
-
-        setIsAuthenticated(true)
-
-        const res = await fetch(`/api/has-access?courseId=${course?.id}`, {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        })
-
-        if (!res.ok) {
-          throw new Error('Kunne ikke tjekke adgang')
-        }
-
-        const data = await res.json()
-        setHasAccess(data.access)
-      } catch (err) {
-        setError('Der opstod en fejl ved tjek af adgang')
-        setHasAccess(false)
-      } finally {
-        setIsCheckingAccess(false)
-      }
-    }
-
-    checkAccess()
-  }, [course, router])
 
   // Format price
   const formatPrice = (cents: number) => {
@@ -177,17 +137,43 @@ export default function CoursePage({ course }: Props) {
                 </div>
               </div>
 
-              {/* What You'll Learn / Course Content */}
-              {hasAccess && (
+              {/* Course Content */}
+              {hasAccess && course.curriculumJson && (() => {
+                try {
+                  const curriculum: ExtendedCourseCurriculum = typeof course.curriculumJson === 'string'
+                    ? JSON.parse(course.curriculumJson)
+                    : course.curriculumJson;
+
+                  return (
+                    <div className="bg-card rounded-2xl p-8 shadow-lg">
+                      <CoursePlayer curriculum={curriculum} courseId={course.id} />
+                    </div>
+                  );
+                } catch (error) {
+                  console.error('Failed to parse curriculum:', error);
+                  return (
+                    <div className="bg-card rounded-2xl p-8 shadow-lg">
+                      <h2 className="text-2xl font-bold text-text-light mb-4">Kursusindhold</h2>
+                      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6">
+                        <p className="text-red-400 font-medium mb-2">Fejl ved indlæsning af kursus</p>
+                        <p className="text-text-muted text-sm">
+                          Der opstod en fejl ved indlæsning af kursusindholdet. Prøv venligst igen senere.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+              })()}
+
+              {hasAccess && !course.curriculumJson && (
                 <div className="bg-card rounded-2xl p-8 shadow-lg">
                   <h2 className="text-2xl font-bold text-text-light mb-4">Kursusindhold</h2>
                   <div className="text-text-muted">
                     <p className="mb-4">🎓 Du har adgang til dette kursus!</p>
-                    <div className="bg-success/10 border border-success/20 rounded-xl p-6">
-                      <p className="text-success font-medium mb-2">Velkommen til kurset</p>
+                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-6">
+                      <p className="text-yellow-400 font-medium mb-2">Indhold ikke tilgængeligt endnu</p>
                       <p className="text-text-muted text-sm">
-                        Her vil kursusindholdet være tilgængeligt. Dette kunne omfatte videoer,
-                        materialer, opgaver og quizzer.
+                        Dette kursus har ikke AI-genereret indhold endnu. Det vil blive tilgængeligt snart.
                       </p>
                     </div>
                   </div>
@@ -244,15 +230,7 @@ export default function CoursePage({ course }: Props) {
                   <p className="text-sm text-text-muted mt-1">ekskl. moms</p>
                 </div>
 
-                {isCheckingAccess ? (
-                  <div className="py-8">
-                    <LoadingSpinner size="md" text="Tjekker adgang..." />
-                  </div>
-                ) : error ? (
-                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-4">
-                    <p className="text-red-400 text-sm">{error}</p>
-                  </div>
-                ) : hasAccess ? (
+                {hasAccess ? (
                   <div className="space-y-4">
                     <div className="bg-success/10 border border-success/20 rounded-xl p-4">
                       <div className="flex items-center space-x-2 text-success">
@@ -279,8 +257,11 @@ export default function CoursePage({ course }: Props) {
                   <div className="space-y-4">
                     <button
                       onClick={async () => {
+                        // Get fresh session for checkout (server-side already verified auth)
                         const { data: { session } } = await supabase.auth.getSession()
+
                         if (!session) {
+                          // Session expired, redirect to login
                           router.push(`/login?redirect=/courses/${course.id}`)
                           return
                         }
@@ -384,27 +365,109 @@ export default function CoursePage({ course }: Props) {
   )
 }
 
+// Helper function to wrap promises with timeout
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+    )
+  ])
+}
+
 export const getServerSideProps: GetServerSideProps = async (context) => {
+  console.log('🚀 [courses/[id]] getServerSideProps started for course:', context.params?.id)
   const id = Number(context.params?.id)
 
   if (isNaN(id)) {
+    console.log('❌ [courses/[id]] Invalid ID')
     return {
       notFound: true,
     }
   }
 
-  // Use hybrid database adapter
-  const course = await fetchCourseById(id)
+  try {
+    // Use hybrid database adapter with timeout
+    console.log('📚 [courses/[id]] Fetching course...')
+    const course = await withTimeout(
+      fetchCourseById(id),
+      5000,
+      'Course fetch timeout'
+    )
 
-  if (!course) {
+    if (!course) {
+      console.log('❌ [courses/[id]] Course not found')
+      return {
+        notFound: true,
+      }
+    }
+
+    console.log(`✅ [courses/[id]] Course fetched: ${course.title}, priceCents=${course.priceCents}`)
+
+    // Check user authentication server-side with timeout
+    console.log('🔐 [courses/[id]] Checking authentication...')
+    const supabaseServer = createClient(context)
+    let user = null
+
+    try {
+      const authResult = await withTimeout(
+        supabaseServer.auth.getUser(),
+        3000,
+        'Auth timeout'
+      )
+      user = authResult.data.user
+      console.log(`✅ [courses/[id]] User authenticated: ${user?.id}`)
+    } catch (authError) {
+      console.error('[courses/[id]] Auth check failed:', authError)
+      // Continue as unauthenticated user instead of failing the page
+    }
+
+    const isAuthenticated = !!user
+    let hasAccess = false
+
+    console.log(`👤 [courses/[id]] isAuthenticated=${isAuthenticated}, user=${user?.id}`)
+
+    if (user) {
+      console.log(`💰 [courses/[id]] Checking access: priceCents=${course.priceCents}`)
+      // Free courses (priceCents = 0) give automatic access to all authenticated users
+      if (course.priceCents === 0) {
+        console.log('🎉 [courses/[id]] FREE COURSE - Automatic access granted!')
+        hasAccess = true
+      } else {
+        console.log('💳 [courses/[id]] PAID COURSE - Checking purchase record...')
+        // Paid courses require Purchase record
+        try {
+          // Check if user has purchased the course with timeout
+          hasAccess = await withTimeout(
+            checkCourseAccess(user.id, id),
+            2000,
+            'Access check timeout'
+          )
+          console.log(`✅ [courses/[id]] Purchase check result: hasAccess=${hasAccess}`)
+        } catch (accessError) {
+          console.error('[courses/[id]] Access check failed:', accessError)
+          // Default to no access if check fails
+          hasAccess = false
+        }
+      }
+    } else {
+      console.log('❌ [courses/[id]] No user - no access')
+    }
+
+    console.log(`📦 [courses/[id]] Returning props: hasAccess=${hasAccess}, isAuthenticated=${isAuthenticated}`)
+
+    return {
+      props: {
+        course,
+        hasAccess,
+        isAuthenticated,
+      },
+    }
+  } catch (error) {
+    console.error('[courses/[id]] getServerSideProps error:', error)
+    // Return 404 if course fetch fails
     return {
       notFound: true,
     }
-  }
-
-  return {
-    props: {
-      course,
-    },
   }
 }

@@ -16,20 +16,48 @@ import Anthropic from '@anthropic-ai/sdk';
 // CONFIGURATION
 // ============================================================================
 
-const apiKey = process.env.ANTHROPIC_API_KEY;
+/**
+ * Get Anthropic API key from environment
+ * Reads from environment on each call to avoid caching issues
+ */
+function getApiKey(): string {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
 
-// Debug: Log API key status (masked for security)
-if (apiKey) {
+  if (!apiKey) {
+    console.error('[AI Client] ANTHROPIC_API_KEY environment variable is not set!');
+    throw new Error('ANTHROPIC_API_KEY environment variable is required');
+  }
+
+  // Debug: Log API key status (masked for security) - only log once per key
   const masked = `${apiKey.substring(0, 20)}...${apiKey.substring(apiKey.length - 10)}`;
   console.log('[AI Client] Using Anthropic API Key:', masked);
   console.log('[AI Client] Key length:', apiKey.length, 'characters');
-} else {
-  console.error('[AI Client] ANTHROPIC_API_KEY environment variable is not set!');
-  throw new Error('ANTHROPIC_API_KEY environment variable is required');
+
+  return apiKey;
 }
 
-// Initialize Anthropic client
-export const anthropic = new Anthropic({ apiKey });
+// Lazy-initialized Anthropic client
+let _anthropicClient: Anthropic | null = null;
+
+/**
+ * Get Anthropic client instance
+ * Creates client lazily on first use to avoid API key caching
+ */
+function getAnthropicClient(): Anthropic {
+  if (!_anthropicClient) {
+    const apiKey = getApiKey();
+    _anthropicClient = new Anthropic({ apiKey });
+  }
+  return _anthropicClient;
+}
+
+// Export getter for backwards compatibility
+export const anthropic = new Proxy({} as Anthropic, {
+  get: (_, prop) => {
+    const client = getAnthropicClient();
+    return (client as any)[prop];
+  }
+});
 
 // ============================================================================
 // MODEL CONFIGURATION
@@ -201,6 +229,56 @@ export async function generateJSON<T = unknown>(
       `Failed to parse Claude response as JSON: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
+}
+
+// ============================================================================
+// RETRY LOGIC
+// ============================================================================
+
+/**
+ * Retry wrapper with exponential backoff
+ *
+ * Retries failed API calls with increasing delays between attempts.
+ * Useful for handling transient network errors and rate limits.
+ *
+ * @param fn - Async function to retry
+ * @param maxRetries - Maximum number of retry attempts (default: 3)
+ * @param baseDelay - Base delay in ms (default: 1000)
+ * @returns Result of the function
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Don't retry on the last attempt
+      if (attempt === maxRetries) {
+        break;
+      }
+
+      // Calculate delay with exponential backoff: baseDelay * 2^(attempt-1)
+      const delay = baseDelay * Math.pow(2, attempt - 1);
+
+      console.warn(
+        `[AI] Attempt ${attempt}/${maxRetries} failed: ${lastError.message}. Retrying in ${delay}ms...`
+      );
+
+      // Wait before retrying
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  // All retries failed
+  console.error(`[AI] All ${maxRetries} attempts failed`);
+  throw lastError;
 }
 
 // ============================================================================

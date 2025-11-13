@@ -117,6 +117,155 @@ Generate the curriculum now:`;
 }
 
 // ============================================================================
+// SECTION CONTENT GENERATION (Phase 2)
+// ============================================================================
+
+/**
+ * System prompt for section content generation
+ */
+export const CONTENT_SYSTEM_PROMPT = `Du er en ekspert tech-uddannelses indholdsproducent. Din opgave er at generere detaljeret, engagerende lektionsindhold til online tech-kurser på dansk.
+
+RETNINGSLINJER:
+- Skriv klart og pædagogisk (som om du forklarer til en kollega)
+- Brug konkrete eksempler og virkelige use cases
+- Inkluder kodeeksempler hvor relevant (med forklaringer)
+- Strukturer indhold i afsnit, lister, og callouts
+- Undgå fluff - vær præcis og actionable
+- Sprog: Dansk (code comments i engelsk)
+
+OUTPUT FORMAT: JSON med følgende struktur:
+{
+  "introduction": "100-200 ord introduktion...",
+  "blocks": [
+    {
+      "type": "paragraph|heading|list|callout",
+      "content": "...",
+      "subItems": ["..."],
+      "calloutType": "info|warning|tip|example",
+      "heading": "h3|h4"
+    }
+  ],
+  "codeExamples": [
+    {
+      "title": "...",
+      "description": "...",
+      "language": "typescript|python|javascript|...",
+      "code": "...",
+      "explanation": "..."
+    }
+  ],
+  "summary": "50-100 ord opsummering...",
+  "keyTakeaways": ["takeaway 1", "takeaway 2", "takeaway 3"]
+}
+
+Generer ALTID valid JSON. Ingen markdown code blocks - kun ren JSON.`;
+
+/**
+ * Generate content prompt for a specific section
+ */
+export function getSectionContentPrompt(
+  courseTitle: string,
+  courseDescription: string,
+  courseLevel: string,
+  sectionNumber: number,
+  sectionTitle: string,
+  sectionDescription: string,
+  learningObjectives: string[],
+  topics: string[],
+  estimatedMinutes: number
+): string {
+  return `Generer detaljeret lektionsindhold til følgende section:
+
+COURSE CONTEXT:
+- Course Title: ${courseTitle}
+- Course Level: ${courseLevel}
+- Course Description: ${courseDescription}
+
+SECTION INFO:
+- Section Number: ${sectionNumber}
+- Section Title: ${sectionTitle}
+- Section Description: ${sectionDescription}
+- Learning Objectives: ${JSON.stringify(learningObjectives)}
+- Topics to Cover: ${JSON.stringify(topics)}
+- Estimated Duration: ${estimatedMinutes} minutter
+
+REQUIREMENTS:
+1. Skriv 500-800 ord hovedindhold fordelt på blocks
+2. Inkluder 1-3 kodeeksempler hvis relevant til emnet (kun hvis teknisk topic - ellers 0 kodeeksempler)
+3. Brug callouts til at fremhæve vigtige points
+4. End med 3-5 key takeaways
+
+Generer JSON output nu (INGEN markdown code blocks - kun ren JSON).`;
+}
+
+// ============================================================================
+// SECTION QUIZ GENERATION (Phase 2)
+// ============================================================================
+
+/**
+ * System prompt for quiz generation
+ */
+export const QUIZ_SYSTEM_PROMPT = `Du er en ekspert i at designe tech-quiz til at teste forståelse og praktisk anvendelse. Din opgave er at generere quiz-spørgsmål til online tech-kurser på dansk.
+
+RETNINGSLINJER:
+- Fokuser på forståelse og anvendelse (ikke bare fakta)
+- Mix af sværhedsgrader (let → medium → svær)
+- Skriv realistiske distraktorer (forkerte svar der virker plausible)
+- Inkluder code snippets hvor relevant
+- Undgå tvetydige spørgsmål
+- Sprog: Dansk (code snippets i engelsk)
+
+OUTPUT FORMAT: JSON med følgende struktur:
+{
+  "questions": [
+    {
+      "questionText": "Spørgsmål...",
+      "questionType": "multiple_choice|true_false|code_completion",
+      "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+      "correctAnswer": "Option 2",
+      "explanation": "Forklaring af hvorfor dette er korrekt...",
+      "difficulty": "easy|medium|hard",
+      "codeSnippet": "// Optional code snippet hvis relevant"
+    }
+  ]
+}
+
+Generer ALTID valid JSON. Ingen markdown code blocks - kun ren JSON.`;
+
+/**
+ * Generate quiz prompt for a specific section
+ */
+export function getSectionQuizPrompt(
+  courseTitle: string,
+  courseLevel: string,
+  sectionNumber: number,
+  sectionTitle: string,
+  learningObjectives: string[],
+  topics: string[]
+): string {
+  return `Generer quiz-spørgsmål til følgende section:
+
+COURSE CONTEXT:
+- Course Title: ${courseTitle}
+- Course Level: ${courseLevel}
+
+SECTION INFO:
+- Section Number: ${sectionNumber}
+- Section Title: ${sectionTitle}
+- Learning Objectives: ${JSON.stringify(learningObjectives)}
+- Topics Covered: ${JSON.stringify(topics)}
+
+REQUIREMENTS:
+1. Generer 3-5 spørgsmål
+2. Test forståelse af nøglekoncept (ikke bare fakta)
+3. Mix af sværhedsgrader (1-2 easy, 2-3 medium, 0-1 hard)
+4. Inkluder code snippets hvis relevant til emnet
+5. Skriv uddybende forklaringer (ikke bare "Det er korrekt")
+
+Generer JSON output nu (INGEN markdown code blocks - kun ren JSON).`;
+}
+
+// ============================================================================
 // EXISTING CODE (Course Matching)
 // ============================================================================
 

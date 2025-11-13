@@ -38,6 +38,7 @@ export type CourseWithRelations = {
   updatedAt: string;
   providerId: number;
   categoryId: number;
+  curriculumJson?: any | null;
   provider?: {
     id?: number;
     companyName: string;
@@ -301,6 +302,7 @@ export async function fetchCourseById(id: number): Promise<CourseWithRelations |
         updatedAt,
         providerId,
         categoryId,
+        curriculumJson,
         category:categories(id, name, icon, color),
         provider:providers(id, companyName, website)
       `)
