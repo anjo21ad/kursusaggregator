@@ -6,9 +6,24 @@ Dette dokument forklarer hvordan man skifter fra HackerNews til Azure som kilde 
 
 ## 🚀 Hurtig Start
 
-**Simpleste måde at komme i gang:**
+**Production Setup (Anbefalet):**
 
-### Option 1: Test Lokalt (Anbefalet først)
+1. **Frontend er allerede deployed**: https://kursusaggregator.vercel.app
+2. **Test API endpoint:**
+   ```bash
+   curl https://kursusaggregator.vercel.app/api/azure-articles
+   # Burde returnere 8 Azure-emner
+   ```
+
+3. **Åbn Railway n8n**: https://n8n-production-30ce.up.railway.app
+4. **Import** `n8n-workflow-azure-scraper.json`
+5. **Sæt environment variables** i Railway n8n settings:
+   ```bash
+   WEBHOOK_URL=https://kursusaggregator.vercel.app
+   WEBHOOK_SECRET=coursehub_n8n_secure_key_2025_change_in_production
+   ```
+
+### Alternativ: Test Lokalt
 
 1. **Start Next.js:**
    ```bash
@@ -18,23 +33,12 @@ Dette dokument forklarer hvordan man skifter fra HackerNews til Azure som kilde 
 2. **Test API endpoint:**
    ```bash
    curl http://localhost:3000/api/azure-articles
-   # Burde returnere 8 Azure-emner
    ```
 
-3. **Kør n8n lokalt (hvis du vil teste workflowet):**
+3. **Kør n8n lokalt med Docker:**
    ```bash
    docker run -p 5678:5678 n8nio/n8n
    ```
-
-4. **Import workflow** og sæt `WEBHOOK_URL=http://host.docker.internal:3000`
-
-### Option 2: Railway n8n (Production)
-
-1. **Deploy frontend** til Vercel/Railway først
-2. **Åbn Railway n8n**: https://n8n-production-30ce.up.railway.app
-3. **Import** `n8n-workflow-azure-scraper.json`
-4. **Ændr "Fetch Azure Articles" node** til din production URL
-5. **Sæt environment variables** i Railway n8n settings
 
 ---
 
@@ -78,7 +82,7 @@ curl http://localhost:3000/api/azure-articles
 **Fil:** [`n8n-workflow-azure-scraper.json`](n8n-workflow-azure-scraper.json)
 
 Modificeret version af HackerNews-scraperen, der:
-1. Henter data fra `/api/azure-articles` i stedet for HackerNews API
+1. Henter data fra `https://kursusaggregator.vercel.app/api/azure-articles` (Production URL)
 2. Looper gennem Azure-emnerne
 3. Sender hver artikel til Claude AI for analyse
 4. Filtrerer baseret på relevans (≥70%)
@@ -114,21 +118,16 @@ n8n skal kende Next.js webhook URL og secret:
 2. Log ind og gå til **Settings** → **Environments**
 3. Tilføj følgende variabler:
 
-**Development/Testing (localhost):**
+**Production (Anbefalet):**
 ```bash
-WEBHOOK_URL=http://localhost:3000
-WEBHOOK_SECRET=coursehub_n8n_secure_key_2025_change_in_production
-```
-
-**Production (når frontend er deployed):**
-```bash
-WEBHOOK_URL=https://[DIN-VERCEL-URL]
+WEBHOOK_URL=https://kursusaggregator.vercel.app
 WEBHOOK_SECRET=coursehub_n8n_secure_key_2025_change_in_production
 ```
 
 **VIGTIGT:**
-- Hvis n8n kører i Docker lokalt, brug `http://host.docker.internal:3000`
-- Railway n8n kan ikke tilgå localhost - test da lokalt først eller deploy frontend
+- Frontend er allerede deployed på https://kursusaggregator.vercel.app
+- Workflowet er konfigureret til at bruge production URL
+- Hvis du tester lokalt, brug `http://host.docker.internal:3000` i Docker
 
 ### Trin 4: Test workflowet
 
@@ -155,7 +154,7 @@ WEBHOOK_SECRET=coursehub_n8n_secure_key_2025_change_in_production
               ↓
 ┌─────────────────────────────────────────────┐
 │  2. Fetch Azure Articles                    │
-│     GET http://localhost:3000/api/azure-articles
+│     GET https://kursusaggregator.vercel.app/api/azure-articles
 │     Returnerer 8 Azure-emner                │
 └─────────────────────────────────────────────┘
               ↓
@@ -290,20 +289,18 @@ Dette kræver HTML parsing og er mere komplekst, men giver **automatisk opdagels
 
 ### Workflow fejler ved "Fetch Azure Articles"
 
-**Problem:** Cannot connect to localhost:3000 (Railway n8n)
+**Problem:** Cannot connect to API endpoint
 
 **Løsning:**
-Railway n8n kan **ikke** tilgå localhost. Du har to muligheder:
-
-1. **Test lokalt først:**
-   - Kør n8n lokalt med Docker: `docker run -p 5678:5678 n8nio/n8n`
-   - Brug `WEBHOOK_URL=http://host.docker.internal:3000`
-   - Test workflowet lokalt før upload til Railway
-
-2. **Deploy frontend først:**
-   - Deploy frontend til Vercel/Railway
-   - Opdater `WEBHOOK_URL` i Railway n8n til production URL
-   - Test direkte fra Railway n8n
+1. **Verificer production URL er korrekt:**
+   - Workflowet bruger: `https://kursusaggregator.vercel.app/api/azure-articles`
+   - Test endpointet manuelt:
+     ```bash
+     curl https://kursusaggregator.vercel.app/api/azure-articles
+     ```
+2. **Check Vercel deployment:**
+   - Gå til https://vercel.com og check om deployment er successful
+   - Se logs for eventuelle errors
 
 ### Ingen TrendProposals oprettes
 
