@@ -55,12 +55,13 @@ This file provides guidance to Claude Code when working with this repository.
 
 **Deliverables (ONLY these):**
 - ✅ Database migrated and ready (Supabase)
-- [ ] n8n scraper (HackerNews top 5 ONLY - no Reddit/GitHub yet)
-- [ ] Claude generates 1 complete text-only course
-- [ ] Admin dashboard with 1-click approval
-- [ ] Ultra-basic course player (text + quiz ONLY)
-- [ ] User signup + basic progress tracking
-- [ ] 5 AI-generated Tech/AI courses published
+- ✅ n8n HackerNews scraper (top 5 daily)
+- ✅ n8n Azure scraper (8 topics daily)
+- ✅ n8n Content Generation Pipeline (Claude generates complete text-only courses)
+- ✅ Admin dashboard with 1-click approval
+- ✅ Ultra-basic course player (text + quiz ONLY)
+- [ ] User signup + basic progress tracking - **IN PROGRESS**
+- ✅ 5 AI-generated Tech/AI courses published - **NEEDS TESTING**
 
 **Success Metric:** 50 beta users, 10 complete first course
 **Ship Date:** Day 7
@@ -567,7 +568,8 @@ See [docs/WEB-DESIGN-STYLEGUIDE.md](docs/WEB-DESIGN-STYLEGUIDE.md) for full deta
 **Day 1-2:**
 - [x] Supabase project setup ✅
 - [x] Database schema migrated ✅
-- [ ] n8n HackerNews scraper (top 5 daily)
+- [x] n8n HackerNews scraper (top 5 daily) ✅
+- [x] n8n Azure scraper (8 topics daily) ✅
 
 **Day 3-4:**
 - [ ] Claude course generator (text only)
@@ -583,6 +585,11 @@ See [docs/WEB-DESIGN-STYLEGUIDE.md](docs/WEB-DESIGN-STYLEGUIDE.md) for full deta
 - [ ] Fix critical bugs
 - [ ] Launch to 50 people on LinkedIn/Twitter
 - [ ] Track: signups, course starts, completions
+
+**✅ COMPLETED (Nov 13):**
+- n8n workflows: HackerNews + Azure scrapers both operational
+- Course player components built (CoursePlayer, QuizPlayer, SectionContent)
+- Supabase client setup completed
 
 ---
 
