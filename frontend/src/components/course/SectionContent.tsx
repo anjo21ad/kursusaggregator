@@ -162,7 +162,11 @@ export default function SectionContent({ section, onQuizComplete }: Props) {
       {/* Quiz */}
       {section.quiz && section.quiz.questions.length > 0 && (
         <div>
-          <QuizPlayer quiz={section.quiz} onComplete={onQuizComplete} />
+          <QuizPlayer
+            key={section.sectionNumber}
+            quiz={section.quiz}
+            onComplete={onQuizComplete}
+          />
         </div>
       )}
     </div>

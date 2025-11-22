@@ -147,7 +147,12 @@ frontend/scripts/check-*.js
 frontend/scripts/run-migration.js
 frontend/scripts/test-*.js
 frontend/scripts/create-test-*.js
+frontend/scripts/*.ts
 frontend/prisma/migrations/*.sql
+
+# Development scripts for course generation
+scripts/
+courses/
 
 # Temporary feedback and one-time documentation
 docs/FEEDBACK_*.md

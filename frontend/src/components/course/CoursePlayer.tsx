@@ -36,6 +36,15 @@ export default function CoursePlayer({ curriculum, courseId }: Props) {
     setIsQuizCompleted(completedSections.includes(currentSectionIndex));
   }, [currentSectionIndex, completedSections]);
 
+  // Scroll to top when section changes (after render)
+  useEffect(() => {
+    // Use setTimeout to ensure DOM is fully updated before scrolling
+    const timeoutId = setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [currentSectionIndex]);
+
   const handleQuizComplete = (score: number) => {
     setQuizScores(prev => ({
       ...prev,
@@ -52,20 +61,20 @@ export default function CoursePlayer({ curriculum, courseId }: Props) {
   const handleNext = () => {
     if (!isLastSection) {
       setCurrentSectionIndex(prev => prev + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Scroll is handled by useEffect to ensure it happens after DOM update
     }
   };
 
   const handlePrevious = () => {
     if (!isFirstSection) {
       setCurrentSectionIndex(prev => prev - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Scroll is handled by useEffect to ensure it happens after DOM update
     }
   };
 
   const handleJumpToSection = (sectionIndex: number) => {
     setCurrentSectionIndex(sectionIndex);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll is handled by useEffect to ensure it happens after DOM update
   };
 
   return (
